@@ -8,6 +8,8 @@
   "private": true,
   "scripts": {
     "start": "electron .",
+    "admin": "electron admin/main.js",
+    "selfcheck:admin": "electron admin/selfcheck.js",
     "preview": "electron scripts/preview.js",
     "icons": "python scripts/generate-icons.py",
     "pack": "electron-builder --dir",
@@ -32,6 +34,7 @@
       "main.js",
       "preload.js",
       "index.html",
+      "lib/**/*",
       "styles/**/*",
       "renderer/**/*",
       "icons/icon.ico",

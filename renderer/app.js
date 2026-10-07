@@ -741,12 +741,42 @@
     );
   }
 
+  /** Pastille d'un outil : icône choisie par l'administrateur, sinon initiales. */
+  function appMark(app, size) {
+    if (app.icon) return svg(app.icon, size || 22);
+    return esc(app.mark || String(app.name || "").slice(0, 2));
+  }
+
+  /**
+   * Applique la marque de l'établissement : son logo s'il est fourni par le
+   * catalogue, sinon la marque par défaut du portail.
+   */
+  function renderBranding() {
+    var logo = state.catalog && state.catalog.logo;
+    var node = document.getElementById("rail-logo");
+    if (!node) return;
+
+    if (logo) {
+      node.classList.add("has-logo");
+      node.innerHTML = '<img alt="" src="' + esc(logo) + '">';
+    } else {
+      node.classList.remove("has-logo");
+      node.innerHTML =
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">' +
+        '<rect x="3.4" y="3.4" width="7.4" height="7.4" rx="2"></rect>' +
+        '<rect x="13.2" y="3.4" width="7.4" height="7.4" rx="2"></rect>' +
+        '<rect x="3.4" y="13.2" width="7.4" height="7.4" rx="2"></rect>' +
+        '<rect x="13.2" y="13.2" width="7.4" height="7.4" rx="2"></rect>' +
+        "</svg>";
+    }
+  }
+
   function chip(app) {
     var entry = usageOf(app.id);
     return (
       '<button class="chip" type="button" data-action="open" data-id="' + esc(app.id) +
       '" data-cat="' + esc(app.category) + '" title="' + esc(app.description) + '">' +
-      '<span class="chip-mark">' + esc(app.mark || app.name.slice(0, 2)) + "</span>" +
+      '<span class="chip-mark">' + appMark(app, 14) + "</span>" +
       esc(app.name) +
       (entry.last ? '<span class="chip-time">' + esc(relativeTime(entry.last)) + "</span>" : "") +
       "</button>"
@@ -809,7 +839,7 @@
       '<article class="app-card" data-cat="' + esc(app.category) + '" ' +
       'data-action="open" data-id="' + esc(app.id) + '">' +
       '<div class="app-card-head">' +
-      '<span class="app-mark">' + esc(app.mark || app.name.slice(0, 2)) + "</span>" +
+      '<span class="app-mark">' + appMark(app, 22) + "</span>" +
       '<div class="app-card-title">' +
       '<div class="app-name" title="' + esc(app.name) + '">' + esc(app.name) + "</div>" +
       '<div class="app-eyebrow"><span class="dot"></span>' +
@@ -1009,6 +1039,7 @@
           label: app.name,
           desc: app.category + (app.meta ? " · " + app.meta : ""),
           mark: app.mark || app.name.slice(0, 2),
+          appIcon: app.icon || null,
           category: app.category,
           score: best + 40,
           run: function () {
@@ -1071,9 +1102,11 @@
         html += '<li class="palette-group" role="presentation">' + esc(item.group) + "</li>";
         lastGroup = item.group;
       }
-      var marker = item.mark
-        ? '<span class="palette-opt-mark">' + esc(item.mark) + "</span>"
-        : '<span class="palette-opt-mark">' + svg(item.icon || "grid", 17) + "</span>";
+      var marker = item.appIcon
+        ? '<span class="palette-opt-mark">' + svg(item.appIcon, 17) + "</span>"
+        : item.mark
+          ? '<span class="palette-opt-mark">' + esc(item.mark) + "</span>"
+          : '<span class="palette-opt-mark">' + svg(item.icon || "grid", 17) + "</span>";
       html +=
         '<li role="option" id="palette-opt-' + index + '" class="palette-opt" ' +
         'aria-selected="' + (index === paletteState.active ? "true" : "false") + '" ' +
@@ -1484,6 +1517,7 @@
     els.userOrg.textContent = user.role || "";
     els.railOrg.textContent = state.catalog.establishment || "";
     els.statusEstab.textContent = state.catalog.establishment || "";
+    renderBranding();
   }
 
   function applyAllPreferences() {

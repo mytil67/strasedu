@@ -30,10 +30,15 @@
       "icon": "fileText",
       "color": "#3B82F6",
       "description": "Préparer, annoter et signer les documents imprimés."
+    },
+    "Services": {
+      "icon": "globe",
+      "color": "#65A30D",
+      "description": "Services numériques académiques et nationaux."
     }
   },
 
-  "categories": ["Audio", "Vidéo", "IA", "Fichiers", "PDF"],
+  "categories": ["Audio", "Vidéo", "IA", "Fichiers", "PDF", "Services"],
 
   "apps": [
     {
@@ -279,6 +284,46 @@
       "keywords": ["annoter", "corriger", "copie", "poste", "bureau"],
       "path": "C:\\Program Files\\Tracker Software\\PDF Editor\\PDFXEdit.exe",
       "type": "local"
+    },
+
+    {
+      "id": "prim-a",
+      "name": "PRIM-A",
+      "category": "IA",
+      "description": "Assistant d'intelligence artificielle de l'académie de Strasbourg pour le premier degré.",
+      "mark": "PA",
+      "icon": "sparkles",
+      "badge": 0,
+      "meta": "Académie de Strasbourg",
+      "keywords": ["ia", "primaire", "assistant", "premier degre", "academie", "strasbourg"],
+      "url": "https://prim-a.ac-strasbourg.fr/",
+      "type": "web"
+    },
+    {
+      "id": "forge-communs",
+      "name": "Forge des communs numériques",
+      "category": "Services",
+      "description": "Partage et co-construction de ressources pédagogiques libres entre enseignants.",
+      "mark": "Fg",
+      "icon": "globe",
+      "badge": 0,
+      "meta": "Ressources libres",
+      "keywords": ["forge", "communs", "partage", "ressources", "libre", "gitlab", "education"],
+      "url": "https://forge.apps.education.fr/",
+      "type": "web"
+    },
+    {
+      "id": "pix-junior",
+      "name": "PIX Junior",
+      "category": "Services",
+      "description": "Évaluation et développement des compétences numériques des élèves.",
+      "mark": "Pj",
+      "icon": "book",
+      "badge": 0,
+      "meta": "Compétences numériques",
+      "keywords": ["pix", "competences", "numerique", "evaluation", "certification", "eleves"],
+      "url": "https://junior.pix.fr/",
+      "type": "web"
     }
   ]
 }

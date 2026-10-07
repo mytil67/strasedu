@@ -106,9 +106,11 @@ non fiable.
 main.js                  processus principal : catalogue, fenêtre, IPC, sécurité
 preload.js               pont IPC étroit exposé au rendu
 index.html               ossature de l'interface
+lib/catalog.js           validation du catalogue, partagée avec l'administration
 styles/app.css           jetons de design et composants (thèmes, densité, Mica)
 renderer/icons.js        jeu d'icônes SVG (aucune dépendance externe)
 renderer/app.js          logique d'interface : vues, recherche, palette, réglages
+admin/                   outil d'administration du catalogue (interface graphique)
 apps.json                catalogue livré (catégories, métadonnées, outils)
 icons/                   icône applicative et icônes de la zone de notification
 portail.config.json.example  modèle de configuration de déploiement
@@ -127,6 +129,19 @@ docs/CATALOGUE.md              guide administrateur du catalogue
 Le **catalogue** (outils, catégories, descriptions, URL) se met à jour tout
 seul : une poussée de `apps.json` et les postes suivent en 30 minutes. Ajouter
 un outil ne demande aucun déploiement.
+
+**Avec l'interface graphique** — c'est la voie normale :
+
+```powershell
+npm run admin
+```
+
+Onglets *Outils*, *Catégories*, *Établissement* : on compose le catalogue, on
+choisit les icônes et le logo officiel, puis on publie sur le partage réseau.
+La version est incrémentée automatiquement, et un catalogue invalide est refusé
+en nommant l'outil fautif.
+
+**En ligne de commande** — pour un catalogue géré en gestion de version :
 
 ```powershell
 # 1. Valider — reprend exactement les règles appliquées par l'application

@@ -281,6 +281,25 @@ svg {
   box-shadow: var(--shadow-1);
 }
 
+/* Logo officiel de l'établissement : il remplace la marque du portail. */
+.rail-logo.has-logo {
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.rail-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.rail-logo svg {
+  width: 18px;
+  height: 18px;
+  color: #fff;
+}
+
 .rail-brandtext {
   display: flex;
   flex-direction: column;

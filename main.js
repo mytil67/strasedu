@@ -90,7 +90,6 @@ const MAX_CATALOG_BYTES = 2 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 12000;
 const MAX_USAGE_ENTRIES = 200;
 const DEFAULT_CHECK_INTERVAL_MIN = 30;
-const ALLOWED_LOCAL_EXT = [".exe", ".lnk"];
 
 /* ─── Configuration externe ──────────────────────────────────────────────── */
 /*
@@ -193,153 +192,14 @@ function writeJSON(filePath, data) {
 
 /* ─── Validation du catalogue ────────────────────────────────────────────── */
 
-function asText(value, max) {
-  if (typeof value !== "string") return "";
-  const trimmed = value.trim();
-  return max ? trimmed.slice(0, max) : trimmed;
-}
+// Règles partagées avec l'application d'administration : une seule
+// implémentation, donc aucune dérive possible entre ce que l'administrateur
+// publie et ce que les postes acceptent.
+const { normalizeCatalog, safeExternalUrl } = require("./lib/catalog");
 
-function safeExternalUrl(value) {
-  const raw = asText(value, 2048);
-  if (!raw) return null;
-  try {
-    const parsed = new URL(raw);
-    return parsed.protocol === "https:" || parsed.protocol === "http:" ? parsed.toString() : null;
-  } catch {
-    return null;
-  }
-}
-
-function safeLocalPath(value) {
-  const raw = asText(value, 1024);
-  if (!raw || !path.isAbsolute(raw)) return null;
-  if (ALLOWED_LOCAL_EXT.indexOf(path.extname(raw).toLowerCase()) < 0) return null;
-
-  let resolved;
-  try {
-    resolved = path.resolve(raw);
-  } catch {
-    return null;
-  }
-
-  if (ALLOWED_LOCAL_ROOTS) {
-    const lowered = resolved.toLowerCase();
-    const allowed = ALLOWED_LOCAL_ROOTS.some(
-      (root) => lowered === root || lowered.startsWith(root + path.sep)
-    );
-    if (!allowed) {
-      log("Chemin local refusé (hors des racines autorisées) : " + resolved);
-      return null;
-    }
-  }
-  return resolved;
-}
-
-/**
- * Valide et normalise un catalogue. Toute entrée inexploitable est écartée
- * plutôt que de faire échouer l'ensemble : un catalogue partiellement erroné
- * reste utilisable en classe.
- *
- * ponytail: ces règles sont dupliquées dans scripts/update-catalog.ps1, qui
- * les applique avant publication pour éviter de diffuser un catalogue que les
- * postes écarteraient en silence. Faire évoluer les deux ensemble.
- */
-function normalizeCatalog(raw) {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    throw new Error("catalogue illisible");
-  }
-
-  const rawApps = Array.isArray(raw.apps) ? raw.apps : [];
-  const apps = [];
-  const seen = new Set();
-  let rejected = 0;
-
-  for (const entry of rawApps) {
-    if (!entry || typeof entry !== "object") {
-      rejected += 1;
-      continue;
-    }
-    const id = asText(entry.id, 64);
-    if (!id || seen.has(id)) {
-      rejected += 1;
-      continue;
-    }
-
-    const name = asText(entry.name, 120) || id;
-    const type = entry.type === "local" ? "local" : "web";
-    const appEntry = {
-      id,
-      name,
-      category: asText(entry.category, 60) || "Autres",
-      description: asText(entry.description, 400),
-      mark: asText(entry.mark, 4) || name.slice(0, 2),
-      meta: asText(entry.meta, 80),
-      badge: Number.isFinite(entry.badge) ? Math.max(0, Math.min(999, Math.floor(entry.badge))) : 0,
-      keywords: Array.isArray(entry.keywords)
-        ? entry.keywords.map((word) => asText(word, 40)).filter(Boolean).slice(0, 24)
-        : [],
-      type
-    };
-
-    if (type === "web") {
-      const url = safeExternalUrl(entry.url);
-      if (!url) {
-        rejected += 1;
-        continue;
-      }
-      appEntry.url = url;
-    } else {
-      const localPath = safeLocalPath(entry.path);
-      if (!localPath) {
-        rejected += 1;
-        continue;
-      }
-      appEntry.path = localPath;
-    }
-
-    seen.add(id);
-    apps.push(appEntry);
-  }
-
-  const declared = Array.isArray(raw.categories) ? raw.categories : [];
-  const categories = [];
-  for (const item of declared) {
-    const label = typeof item === "string" ? item : item && (item.name || item.label);
-    const clean = asText(label, 60);
-    if (clean && categories.indexOf(clean) < 0) categories.push(clean);
-  }
-  for (const entry of apps) {
-    if (categories.indexOf(entry.category) < 0) categories.push(entry.category);
-  }
-
-  const rawMeta = raw.categoryMeta && typeof raw.categoryMeta === "object" ? raw.categoryMeta : {};
-  const categoryMeta = {};
-  for (const [key, value] of Object.entries(rawMeta)) {
-    if (!value || typeof value !== "object") continue;
-    const meta = {};
-    if (asText(value.icon, 40)) meta.icon = asText(value.icon, 40);
-    if (/^#[0-9a-f]{6}$/i.test(asText(value.color, 9))) meta.color = asText(value.color, 9);
-    if (asText(value.description, 300)) meta.description = asText(value.description, 300);
-    if (Object.keys(meta).length) categoryMeta[key] = meta;
-  }
-
-  if (!apps.length) throw new Error("aucun outil valide dans le catalogue");
-
-  return {
-    schema: 2,
-    version: asText(raw.version, 32) || "0.0.0",
-    lastUpdated: asText(raw.lastUpdated, 32),
-    establishment: asText(raw.establishment, 160) || APP_NAME,
-    user: {
-      initials: asText(raw.user && raw.user.initials, 4),
-      name: asText(raw.user && raw.user.name, 80),
-      role: asText(raw.user && raw.user.role, 80)
-    },
-    categories,
-    categoryMeta,
-    apps,
-    rejected
-  };
+/** Options de validation issues de la configuration de déploiement. */
+function catalogOptions() {
+  return { allowedLocalRoots: ALLOWED_LOCAL_ROOTS, onNotice: log };
 }
 
 /* ─── Chargement du catalogue ────────────────────────────────────────────── */
@@ -362,7 +222,7 @@ function loadCatalog() {
     try {
       if (!fs.existsSync(candidate)) continue;
       const raw = JSON.parse(fs.readFileSync(candidate, "utf-8"));
-      const parsed = normalizeCatalog(raw);
+      const parsed = normalizeCatalog(raw, catalogOptions());
 
       if (candidate === localPath) {
         catalogCache = parsed;
@@ -599,7 +459,7 @@ async function checkForUpdates(options) {
       return { ok: true, updated: false, reason: "not-modified", version: local.version };
     }
 
-    const normalized = normalizeCatalog(remote);
+    const normalized = normalizeCatalog(remote, catalogOptions());
     const local = catalogCache || loadCatalog();
 
     if (normalized.version === local.version) {

@@ -9,6 +9,8 @@ dist/
 
 # Sorties de contrôle et de diagnostic
 .preview/
+.selfcheck/
+.tmp/
 .acl-recovery/
 *.log
 

@@ -10,6 +10,56 @@ URL, réordonner les catégories.
 
 ---
 
+## 0. L'outil d'administration (interface graphique)
+
+Tout ce qui suit peut se faire à la main dans un éditeur de texte. L'outil
+d'administration évite d'y toucher : il compose le catalogue, le valide et le
+publie.
+
+```powershell
+npm install          # une seule fois
+npm run admin
+```
+
+| Onglet | Ce qu'on y fait |
+| --- | --- |
+| **Outils** | Ajouter, modifier, supprimer un outil ; lui affecter une icône parmi celles du portail, ou revenir à la pastille à deux lettres ; régler catégorie, type (site web ou logiciel installé), mots-clés, pastille chiffrée. |
+| **Catégories** | Créer une catégorie, la renommer (les outils suivent), choisir son icône, sa couleur et sa description. |
+| **Établissement** | Nom, initiales de l'utilisateur, logo officiel (il remplace la marque du portail), version du catalogue, et dossier de publication. |
+
+L'aperçu de catégorie et le bandeau supérieur montrent le résultat en direct.
+La barre d'état indique en permanence si le catalogue est conforme, et les
+outils fautifs sont marqués « à vérifier » dans la liste.
+
+### Publier
+
+1. **Établissement → Choisir le dossier…** : désigner le partage réseau
+   (`\\serveur\partage\PortailOutils`). Le choix est mémorisé.
+2. **Publier…** : validation, incrément automatique de la version, écriture de
+   `apps.json` par fichier temporaire puis remplacement.
+
+> **« Enregistrer » n'écrit jamais sur le partage.** Seul « Publier » le fait,
+> et c'est lui qui incrémente la version. Enregistrer directement sur le
+> partage diffuserait des changements **sans changer la version** — donc sans
+> que le moindre poste ne se mette à jour. C'est le piège que l'outil évite.
+
+« Charger le catalogue publié » relit ce qui est actuellement diffusé, pour le
+corriger : le contenu remplace celui de l'éditeur, la cible d'enregistrement ne
+change pas.
+
+### Vérifier l'outil lui-même
+
+```powershell
+npm run selfcheck:admin
+```
+
+Pilote l'interface sur un catalogue temporaire et vérifie 57 points : ajout,
+modification, suppression, icônes, catégories, renommage, logo, enregistrement,
+publication, refus d'un catalogue invalide. Les captures sont écrites dans
+`.preview/admin/`.
+
+---
+
 ## 1. Le principe : c'est la version qui déclenche tout
 
 L'application compare la `version` du catalogue publié à celle qu'elle possède :

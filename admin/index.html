@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<title>Portail Outils — Administration</title>
+<link rel="stylesheet" href="../styles/app.css">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body class="admin-body-root">
+
+<div class="admin">
+
+  <!-- ── Barre supérieure ──────────────────────────────────────────────── -->
+  <header class="admin-top">
+    <div class="admin-brand">
+      <span class="admin-logo" id="brand-mark" aria-hidden="true"></span>
+      <span class="admin-brandtext">
+        <span class="admin-title">Portail Outils</span>
+        <span class="admin-sub" id="brand-sub">Administration du catalogue</span>
+      </span>
+    </div>
+    <div class="admin-top-actions">
+      <button class="btn btn-sm" type="button" data-act="open">Ouvrir…</button>
+      <button class="btn btn-sm" type="button" data-act="save">Enregistrer</button>
+      <button class="btn btn-sm" type="button" data-act="save-as">Enregistrer sous…</button>
+      <button class="btn btn-sm btn-primary" type="button" data-act="publish">Publier…</button>
+    </div>
+  </header>
+
+  <!-- ── Onglets ───────────────────────────────────────────────────────── -->
+  <nav class="admin-tabs" role="tablist" aria-label="Sections">
+    <button class="admin-tab" type="button" role="tab" data-tab="apps" aria-pressed="true">Outils</button>
+    <button class="admin-tab" type="button" role="tab" data-tab="categories" aria-pressed="false">Catégories</button>
+    <button class="admin-tab" type="button" role="tab" data-tab="establishment" aria-pressed="false">Établissement</button>
+  </nav>
+
+  <main class="admin-main">
+
+    <!-- ── Outils ──────────────────────────────────────────────────────── -->
+    <section class="admin-panel" data-panel="apps" role="tabpanel">
+      <aside class="admin-list">
+        <div class="admin-list-head">
+          <div class="search admin-search">
+            <input id="app-filter" type="search" placeholder="Filtrer les outils…" aria-label="Filtrer les outils">
+          </div>
+          <button class="btn btn-sm btn-primary" type="button" data-act="app-add">Nouvel outil</button>
+        </div>
+        <ul class="admin-items" id="app-list"></ul>
+      </aside>
+
+      <div class="admin-form" id="app-form">
+        <p class="admin-hint" id="app-empty">
+          Sélectionnez un outil à gauche, ou créez-en un nouveau.
+        </p>
+
+        <div class="admin-fields" id="app-fields" hidden>
+          <div class="field-row">
+            <label class="field">
+              <span>Nom affiché</span>
+              <input type="text" id="f-name" maxlength="120" autocomplete="off">
+            </label>
+            <label class="field">
+              <span>Identifiant <em>(unique, sans espace)</em></span>
+              <input type="text" id="f-id" maxlength="64" autocomplete="off" spellcheck="false">
+            </label>
+          </div>
+
+          <div class="field-row">
+            <label class="field">
+              <span>Catégorie</span>
+              <select id="f-category"></select>
+            </label>
+            <div class="field">
+              <span>Type d'outil</span>
+              <div class="segmented" id="f-type" role="group" aria-label="Type d'outil">
+                <button type="button" data-type="web" aria-pressed="true">Site web</button>
+                <button type="button" data-type="local" aria-pressed="false">Logiciel installé</button>
+              </div>
+            </div>
+          </div>
+
+          <label class="field" id="row-url">
+            <span>Adresse du site <em>(https)</em></span>
+            <input type="url" id="f-url" maxlength="2048" autocomplete="off" spellcheck="false"
+                   placeholder="https://exemple.fr">
+          </label>
+
+          <label class="field" id="row-path" hidden>
+            <span>Chemin du logiciel <em>(absolu, .exe ou .lnk)</em></span>
+            <input type="text" id="f-path" maxlength="1024" autocomplete="off" spellcheck="false"
+                   placeholder="C:\Program Files\Éditeur\Logiciel.exe">
+          </label>
+
+          <label class="field">
+            <span>Description <em>(ce que l'outil permet de faire)</em></span>
+            <textarea id="f-description" rows="2" maxlength="400"></textarea>
+          </label>
+
+          <div class="field-row">
+            <label class="field field-narrow">
+              <span>Pastille <em>(2 lettres)</em></span>
+              <input type="text" id="f-mark" maxlength="4" autocomplete="off">
+            </label>
+            <label class="field field-narrow">
+              <span>Pastille chiffrée</span>
+              <input type="number" id="f-badge" min="0" max="999" step="1">
+            </label>
+            <label class="field">
+              <span>Information courte</span>
+              <input type="text" id="f-meta" maxlength="80" autocomplete="off"
+                     placeholder="Sans compte, SSO académie…">
+            </label>
+          </div>
+
+          <label class="field">
+            <span>Mots-clés de recherche <em>(séparés par des virgules)</em></span>
+            <input type="text" id="f-keywords" autocomplete="off"
+                   placeholder="enregistrer, voix, micro">
+          </label>
+
+          <div class="field">
+            <span>Icône <em>(facultative — remplace la pastille)</em></span>
+            <div class="icon-picker" id="app-icon-picker" role="radiogroup" aria-label="Icône de l'outil"></div>
+          </div>
+
+          <div class="admin-form-actions">
+            <button class="btn btn-sm" type="button" data-act="app-delete">Supprimer cet outil</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Catégories ──────────────────────────────────────────────────── -->
+    <section class="admin-panel" data-panel="categories" role="tabpanel" hidden>
+      <aside class="admin-list">
+        <div class="admin-list-head">
+          <span class="admin-list-title">Catégories</span>
+          <button class="btn btn-sm btn-primary" type="button" data-act="cat-add">Nouvelle</button>
+        </div>
+        <ul class="admin-items" id="cat-list"></ul>
+      </aside>
+
+      <div class="admin-form">
+        <p class="admin-hint" id="cat-empty">Sélectionnez une catégorie, ou créez-en une.</p>
+
+        <div class="admin-fields" id="cat-fields" hidden>
+          <label class="field">
+            <span>Nom de la catégorie</span>
+            <input type="text" id="c-name" maxlength="60" autocomplete="off">
+          </label>
+
+          <label class="field">
+            <span>Description <em>(affichée sur la tuile d'accueil)</em></span>
+            <input type="text" id="c-description" maxlength="300" autocomplete="off">
+          </label>
+
+          <div class="field-row">
+            <label class="field field-narrow">
+              <span>Couleur</span>
+              <input type="color" id="c-color" value="#0f9d63">
+            </label>
+            <label class="field field-narrow">
+              <span>Code</span>
+              <input type="text" id="c-color-text" maxlength="7" spellcheck="false">
+            </label>
+            <div class="cat-preview" id="c-preview"></div>
+          </div>
+
+          <div class="field">
+            <span>Icône</span>
+            <div class="icon-picker" id="cat-icon-picker" role="radiogroup" aria-label="Icône de catégorie"></div>
+          </div>
+
+          <div class="admin-form-actions">
+            <button class="btn btn-sm" type="button" data-act="cat-delete">Supprimer cette catégorie</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Établissement ───────────────────────────────────────────────── -->
+    <section class="admin-panel admin-panel-single" data-panel="establishment" role="tabpanel" hidden>
+      <div class="admin-form admin-form-wide">
+        <div class="admin-fields">
+          <label class="field">
+            <span>Nom de l'établissement</span>
+            <input type="text" id="e-establishment" maxlength="160" autocomplete="off">
+          </label>
+
+          <div class="field-row">
+            <label class="field field-narrow">
+              <span>Initiales</span>
+              <input type="text" id="e-initials" maxlength="4" autocomplete="off">
+            </label>
+            <label class="field">
+              <span>Nom affiché de l'utilisateur</span>
+              <input type="text" id="e-user" maxlength="80" autocomplete="off">
+            </label>
+            <label class="field">
+              <span>Fonction</span>
+              <input type="text" id="e-role" maxlength="80" autocomplete="off" placeholder="Enseignant">
+            </label>
+          </div>
+
+          <div class="field">
+            <span>Logo officiel <em>(remplace la marque du portail)</em></span>
+            <div class="logo-row">
+              <span class="logo-preview" id="logo-preview"></span>
+              <div class="logo-actions">
+                <button class="btn btn-sm" type="button" data-act="logo-pick">Choisir une image…</button>
+                <button class="btn btn-sm" type="button" data-act="logo-clear">Retirer le logo</button>
+                <span class="admin-note" id="logo-note">Aucun logo : la marque du portail est utilisée.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <span>Version du catalogue</span>
+            <div class="version-row">
+              <input type="text" id="e-version" maxlength="32" spellcheck="false">
+              <span class="admin-note">
+                Incrémentée automatiquement à la publication. C'est elle qui déclenche
+                la mise à jour des postes.
+              </span>
+            </div>
+          </div>
+
+          <div class="field">
+            <span>Publication</span>
+            <div class="share-row">
+              <input type="text" id="e-share" readonly placeholder="Aucun partage configuré">
+              <button class="btn btn-sm" type="button" data-act="share-choose">Choisir le dossier…</button>
+              <button class="btn btn-sm" type="button" data-act="share-load">Charger le catalogue publié</button>
+            </div>
+            <span class="admin-note">
+              Le catalogue est écrit dans <code>apps.json</code> à la racine de ce dossier,
+              par fichier temporaire puis remplacement.
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="admin-status">
+    <span id="st-file">Aucun fichier</span>
+    <span class="spacer"></span>
+    <span id="st-count"></span>
+    <span class="status-chip" id="st-state" data-state="ok"></span>
+  </footer>
+</div>
+
+<div class="toast-host" id="toasts"></div>
+
+<script src="../renderer/icons.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>
