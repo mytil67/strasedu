@@ -1,0 +1,284 @@
+{
+  "version": "2.0.0",
+  "schema": 2,
+  "lastUpdated": "2026-10-07",
+  "establishment": "Collège Jean-Moulin",
+  "user": { "initials": "CM", "name": "C. Marchand" },
+
+  "categoryMeta": {
+    "Audio": {
+      "icon": "mic",
+      "color": "#7C5CFF",
+      "description": "Enregistrer, monter et diffuser le son de la classe."
+    },
+    "Vidéo": {
+      "icon": "video",
+      "color": "#E5484D",
+      "description": "Tourner, monter et partager des vidéos pédagogiques."
+    },
+    "IA": {
+      "icon": "sparkles",
+      "color": "#0EA5A5",
+      "description": "Assistants et outils génératifs validés par l'établissement."
+    },
+    "Fichiers": {
+      "icon": "folder",
+      "color": "#F59E0B",
+      "description": "Stocker, synchroniser et transmettre des documents."
+    },
+    "PDF": {
+      "icon": "fileText",
+      "color": "#3B82F6",
+      "description": "Préparer, annoter et signer les documents imprimés."
+    }
+  },
+
+  "categories": ["Audio", "Vidéo", "IA", "Fichiers", "PDF"],
+
+  "apps": [
+    {
+      "id": "vocaroo",
+      "name": "Vocaroo",
+      "category": "Audio",
+      "description": "Enregistrement vocal en un clic, partage par lien.",
+      "mark": "Vo",
+      "badge": 0,
+      "meta": "Sans compte",
+      "keywords": ["enregistrer", "voix", "micro", "dictee", "oral"],
+      "url": "https://vocaroo.com",
+      "type": "web"
+    },
+    {
+      "id": "audacity",
+      "name": "Audacity Web",
+      "category": "Audio",
+      "description": "Montage audio multipiste dans le navigateur.",
+      "mark": "Au",
+      "badge": 0,
+      "meta": "Licence établissement",
+      "keywords": ["montage", "piste", "couper", "mixage", "podcast"],
+      "url": "https://www.audacityteam.org",
+      "type": "web"
+    },
+    {
+      "id": "podcastle",
+      "name": "Podcastle",
+      "category": "Audio",
+      "description": "Podcasts de classe, transcription automatique.",
+      "mark": "Pd",
+      "badge": 2,
+      "meta": "12 projets",
+      "keywords": ["podcast", "transcription", "emission", "radio"],
+      "url": "https://podcastle.ai",
+      "type": "web"
+    },
+    {
+      "id": "ausha",
+      "name": "Ausha",
+      "category": "Audio",
+      "description": "Hébergement et diffusion des podcasts de l'établissement.",
+      "mark": "As",
+      "badge": 0,
+      "meta": "Admin requis",
+      "keywords": ["heberger", "diffuser", "flux", "rss", "podcast"],
+      "url": "https://www.ausha.co",
+      "type": "web"
+    },
+
+    {
+      "id": "clipchamp",
+      "name": "Clipchamp",
+      "category": "Vidéo",
+      "description": "Montage vidéo intégré au compte Microsoft 365.",
+      "mark": "Cl",
+      "badge": 0,
+      "meta": "SSO Microsoft",
+      "keywords": ["monter", "couper", "sous-titres", "office"],
+      "url": "https://app.clipchamp.com",
+      "type": "web"
+    },
+    {
+      "id": "peertube",
+      "name": "PeerTube",
+      "category": "Vidéo",
+      "description": "Plateforme vidéo hébergée par l'académie.",
+      "mark": "Pt",
+      "badge": 4,
+      "meta": "38 vidéos",
+      "keywords": ["heberger", "publier", "capsule", "academie"],
+      "url": "https://tube.ac-strasbourg.fr",
+      "type": "web"
+    },
+    {
+      "id": "loom",
+      "name": "Loom",
+      "category": "Vidéo",
+      "description": "Capture d'écran commentée pour les tutoriels.",
+      "mark": "Lo",
+      "badge": 0,
+      "meta": "25 min / vidéo",
+      "keywords": ["capture", "ecran", "tutoriel", "presenter"],
+      "url": "https://www.loom.com",
+      "type": "web"
+    },
+    {
+      "id": "edpuzzle",
+      "name": "Edpuzzle",
+      "category": "Vidéo",
+      "description": "Vidéos interactives avec questions intégrées.",
+      "mark": "Ed",
+      "badge": 1,
+      "meta": "3 classes",
+      "keywords": ["interactif", "questions", "quiz", "classe"],
+      "url": "https://edpuzzle.com",
+      "type": "web"
+    },
+
+    {
+      "id": "chatgpt",
+      "name": "ChatGPT Edu",
+      "category": "IA",
+      "description": "Assistant conversationnel, comptes enseignants.",
+      "mark": "Gp",
+      "badge": 0,
+      "meta": "SSO académie",
+      "keywords": ["assistant", "rediger", "chat", "preparer"],
+      "url": "https://chat.openai.com",
+      "type": "web"
+    },
+    {
+      "id": "claude",
+      "name": "Claude",
+      "category": "IA",
+      "description": "Rédaction, analyse de documents longs.",
+      "mark": "Cd",
+      "badge": 0,
+      "meta": "SSO académie",
+      "keywords": ["assistant", "analyser", "resumer", "document"],
+      "url": "https://claude.ai",
+      "type": "web"
+    },
+    {
+      "id": "lechat",
+      "name": "Le Chat",
+      "category": "IA",
+      "description": "Assistant IA hébergé en Europe.",
+      "mark": "Lc",
+      "badge": 0,
+      "meta": "RGPD",
+      "keywords": ["assistant", "europe", "donnees", "mistral"],
+      "url": "https://chat.mistral.ai",
+      "type": "web"
+    },
+    {
+      "id": "napkin",
+      "name": "Napkin",
+      "category": "IA",
+      "description": "Schémas et visuels générés depuis un texte.",
+      "mark": "Np",
+      "badge": 3,
+      "meta": "Bêta",
+      "keywords": ["schema", "infographie", "visuel", "croquis"],
+      "url": "https://www.napkin.ai",
+      "type": "web"
+    },
+
+    {
+      "id": "nextcloud",
+      "name": "Nextcloud",
+      "category": "Fichiers",
+      "description": "Espace de stockage de l'établissement, partage par classe.",
+      "mark": "Nc",
+      "badge": 0,
+      "meta": "50 Go",
+      "keywords": ["stockage", "partage", "cloud", "dossier", "classe"],
+      "url": "https://nextcloud.ac-strasbourg.fr",
+      "type": "web"
+    },
+    {
+      "id": "onedrive",
+      "name": "OneDrive",
+      "category": "Fichiers",
+      "description": "Fichiers personnels synchronisés sur le poste.",
+      "mark": "Od",
+      "badge": 7,
+      "meta": "1 To",
+      "keywords": ["stockage", "synchroniser", "microsoft", "cloud"],
+      "url": "https://onedrive.live.com",
+      "type": "web"
+    },
+    {
+      "id": "filesender",
+      "name": "FileSender",
+      "category": "Fichiers",
+      "description": "Envoi de gros fichiers via RENATER.",
+      "mark": "Fs",
+      "badge": 0,
+      "meta": "100 Go / envoi",
+      "keywords": ["envoyer", "gros fichier", "transfert", "renater"],
+      "url": "https://filesender.renater.fr",
+      "type": "web"
+    },
+    {
+      "id": "digiposte",
+      "name": "Digidrive",
+      "category": "Fichiers",
+      "description": "Archivage des documents pédagogiques.",
+      "mark": "Dg",
+      "badge": 0,
+      "meta": "Lecture seule",
+      "keywords": ["archiver", "coffre", "conserver", "document"],
+      "url": "https://www.digiposte.fr",
+      "type": "web"
+    },
+
+    {
+      "id": "stirling",
+      "name": "Stirling PDF",
+      "category": "PDF",
+      "description": "Fusionner, découper, compresser, sans envoi externe.",
+      "mark": "St",
+      "badge": 0,
+      "meta": "Hébergé local",
+      "keywords": ["fusionner", "decouper", "compresser", "convertir"],
+      "url": "https://stirlingpdf.io",
+      "type": "web"
+    },
+    {
+      "id": "ilovepdf",
+      "name": "iLovePDF",
+      "category": "PDF",
+      "description": "Conversion et OCR des documents scannés.",
+      "mark": "iL",
+      "badge": 0,
+      "meta": "Quota 20 / jour",
+      "keywords": ["convertir", "ocr", "scanner", "reconnaissance"],
+      "url": "https://www.ilovepdf.com",
+      "type": "web"
+    },
+    {
+      "id": "acrobat",
+      "name": "Acrobat Web",
+      "category": "PDF",
+      "description": "Annotation et signature des documents officiels.",
+      "mark": "Ac",
+      "badge": 0,
+      "meta": "Licence admin",
+      "keywords": ["annoter", "signer", "commenter", "corriger"],
+      "url": "https://acrobat.adobe.com",
+      "type": "web"
+    },
+    {
+      "id": "pdfxchange",
+      "name": "PDF-XChange",
+      "category": "PDF",
+      "description": "Annotation avancée pour les corrections de copies.",
+      "mark": "Px",
+      "badge": 0,
+      "meta": "Installé sur le poste",
+      "keywords": ["annoter", "corriger", "copie", "poste", "bureau"],
+      "path": "C:\\Program Files\\Tracker Software\\PDF Editor\\PDFXEdit.exe",
+      "type": "local"
+    }
+  ]
+}

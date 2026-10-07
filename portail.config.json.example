@@ -1,0 +1,10 @@
+{
+  "remoteAppsUrl": "\\\\serveur\\partage\\PortailOutils\\apps.json",
+  "checkIntervalMinutes": 30,
+  "allowedLocalRoots": [
+    "C:\\Program Files",
+    "C:\\Program Files (x86)",
+    "C:\\ProgramData"
+  ],
+  "startMinimized": false
+}

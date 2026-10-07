@@ -1,0 +1,81 @@
+{
+  "name": "portail-outils",
+  "version": "2.0.0",
+  "description": "Portail Outils — lanceur d'applications pédagogiques pour les établissements scolaires",
+  "main": "main.js",
+  "author": "STRAS EDU",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "preview": "electron scripts/preview.js",
+    "icons": "python scripts/generate-icons.py",
+    "pack": "electron-builder --dir",
+    "build": "electron-builder --win nsis",
+    "build:portable": "electron-builder --win portable",
+    "build:all": "npm run build && npm run build:portable",
+    "fix-builder-cache": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/fix-builder-cache.ps1"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "fr.strasedu.portail-outils",
+    "productName": "Portail Outils",
+    "copyright": "© STRAS EDU",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "styles/**/*",
+      "renderer/**/*",
+      "icons/icon.ico",
+      "icons/icon.png"
+    ],
+    "extraResources": [
+      {
+        "from": "apps.json",
+        "to": "apps.json"
+      },
+      {
+        "from": "icons",
+        "to": "icons",
+        "filter": ["tray*.png", "icon.ico", "icon.png"]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "icons/icon.ico",
+      "artifactName": "PortailOutils-${version}-${arch}-setup.${ext}",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Portail Outils",
+      "uninstallDisplayName": "Portail Outils ${version}",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true,
+      "installerIcon": "icons/icon.ico",
+      "language": "1036"
+    },
+    "portable": {
+      "artifactName": "PortailOutils-${version}-portable.${ext}",
+      "splashImage": "build/splash.bmp"
+    }
+  }
+}

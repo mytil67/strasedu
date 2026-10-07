@@ -1,0 +1,18 @@
+node_modules/
+dist/
+
+# Caches locaux (npm, Electron, electron-builder)
+.npm-cache/
+.cache/
+.electron-cache/
+.electron-userdata/
+
+# Sorties de contrôle et de diagnostic
+.preview/
+.acl-recovery/
+*.log
+
+# Fichiers de travail
+.thumbnail
+.claude/
+*.exe

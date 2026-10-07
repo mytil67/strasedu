@@ -1,0 +1,203 @@
+# Gérer le catalogue — guide administrateur
+
+Le catalogue est un fichier `apps.json` : la liste des outils, leurs catégories,
+leurs couleurs et leurs descriptions. C'est **le seul fichier à modifier pour
+faire vivre le portail** — ajouter un outil, retirer une ressource, corriger une
+URL, réordonner les catégories.
+
+> Aucune réinstallation n'est nécessaire. Seul un changement du **logiciel**
+> lui-même (interface, correctif) demande un redéploiement.
+
+---
+
+## 1. Le principe : c'est la version qui déclenche tout
+
+L'application compare la `version` du catalogue publié à celle qu'elle possède :
+
+| Comparaison | Ce que fait le poste |
+| --- | --- |
+| version identique | rien du tout |
+| version différente | récupère, valide, remplace, et conserve l'ancienne en secours |
+| catalogue invalide | **rejette** et continue avec l'ancienne version |
+
+**C'est le point à retenir : modifier un outil sans changer la `version` ne met
+rien à jour.** Le script de publication incrémente la version automatiquement
+pour cette raison — ne le court-circuitez pas avec `-NoVersionBump` sans savoir
+ce que vous faites.
+
+---
+
+## 2. Où héberger le catalogue
+
+| | Partage réseau | GitLab |
+| --- | --- | --- |
+| Infrastructure | aucune (le partage existe déjà) | serveur web + forge |
+| Requêtes à 2000 postes | 96 000/j de lectures SMB | 96 000/j, réduites à des `304` |
+| Authentification | droits du partage | **le projet doit être lisible sans jeton** |
+| Historique des versions | non | oui |
+
+**Le partage réseau est recommandé en établissement** : pas de serveur
+supplémentaire, pas de jeton, et les droits sont ceux que vous gérez déjà.
+
+> **Piège de GitLab.** L'application lit l'adresse du catalogue **sans
+> authentification**. Si votre projet est privé, les postes recevront un `401`
+> et ne se mettront jamais à jour. Dans ce cas, publiez le catalogue vers un
+> emplacement public, ou utilisez un partage réseau.
+
+---
+
+## 3. Le cycle de mise à jour
+
+### Étape 1 — Modifier le catalogue
+
+Éditez `apps.json`. Les règles à respecter :
+
+- `id` unique par outil, jamais réutilisé ;
+- `url` en `http` ou `https` pour un outil `"type": "web"` ;
+- `path` absolu en `.exe` ou `.lnk` pour un outil `"type": "local"` ;
+- `category` doit exister dans la liste `categories` ;
+- les `keywords` améliorent la recherche : ce sont les mots que les enseignants
+  taperont (« enregistrer », « voix », « micro »…).
+
+### Étape 2 — Valider avant de publier
+
+```powershell
+.\scripts\update-catalog.ps1 -AppsJsonPath .\apps.json -ValidateOnly
+```
+
+La validation reprend **exactement les règles appliquées par l'application** :
+tout ce qu'elle signale comme erreur bloquante serait silencieusement écarté sur
+les postes. Le rapport distingue :
+
+- **[ERR] erreurs bloquantes** — la publication est refusée ;
+- **[ATTN] avertissements** — la publication passe, mais quelque chose mérite un
+  coup d'œil (catégorie non déclarée, `categoryMeta` manquant, couleur invalide…).
+
+### Étape 3 — Publier
+
+**Sur un partage réseau :**
+
+```powershell
+.\scripts\update-catalog.ps1 -AppsJsonPath .\apps.json `
+                             -SharePath "\\serveur\partage\PortailOutils\apps.json"
+```
+
+Le fichier est écrit par fichier temporaire puis remplacé : un poste qui lit
+pendant la copie ne tombe jamais sur un catalogue à moitié écrit.
+
+**Vers GitLab :**
+
+```powershell
+.\scripts\update-catalog.ps1 -AppsJsonPath .\apps.json `
+                             -GitLabUrl "https://gitlab.ac-strasbourg.fr" `
+                             -ProjectId "123" -Token "glpat-xxxxxxxxxxxx"
+```
+
+### Étape 4 — Les postes récupèrent
+
+Automatiquement, dans les 30 minutes (paramétrable via `checkIntervalMinutes`).
+Les vérifications sont étalées aléatoirement pour ne pas frapper le serveur
+toutes les demi-heures à la même seconde.
+
+Pour forcer immédiatement sur un poste : **Réglages → Catalogue → Vérifier**.
+
+---
+
+## 4. Configurer les postes (une seule fois)
+
+Créez `portail.config.json` dans le dossier `resources` de l'installation :
+
+```json
+{
+  "remoteAppsUrl": "\\\\serveur\\partage\\PortailOutils\\apps.json",
+  "checkIntervalMinutes": 30,
+  "allowedLocalRoots": [
+    "C:\\Program Files",
+    "C:\\Program Files (x86)",
+    "C:\\ProgramData"
+  ]
+}
+```
+
+| Clé | Rôle |
+| --- | --- |
+| `remoteAppsUrl` | Adresse du catalogue : partage réseau (`\\serveur\…`), chemin local (`C:\…`), ou URL `http(s)`. Laissez vide pour un fonctionnement autonome. |
+| `checkIntervalMinutes` | Fréquence de vérification. 30 par défaut ; 60 suffit largement. |
+| `allowedLocalRoots` | *(optionnel)* Restreint les outils `type: "local"` à ces arborescences. |
+| `startMinimized` | *(optionnel)* `true` = démarre dans la zone de notification sans ouvrir de fenêtre. Utile en lancement automatique à l'ouverture de session. |
+
+Le script de déploiement écrit ce fichier pour vous :
+
+```powershell
+.\scripts\install-portail.ps1 -Source "\\serveur\partage\PortailOutils" `
+                              -RemoteAppsUrl "\\serveur\partage\PortailOutils\apps.json"
+```
+
+> **Écrivez ce fichier sans BOM.** Bloc-notes et `Set-Content -Encoding UTF8` en
+> ajoutent un. L'application le tolère depuis la version 2.0.0, mais autant
+> l'éviter : `[System.IO.File]::WriteAllText($p, $t, (New-Object System.Text.UTF8Encoding($false)))`.
+
+---
+
+## 5. Vérifier que la mise à jour est passée
+
+**Sur un poste :** la barre d'état, en bas, indique l'état de synchronisation.
+*Réglages → Catalogue* affiche la version, le nombre d'outils et la date.
+
+**En masse :** le journal applicatif de chaque poste est dans
+`%APPDATA%\Portail Outils\logs\portail.log` :
+
+```
+Catalogue mis à jour : v2.0.0 → v2.0.1
+```
+
+Et la trace de démarrage, dans `%TEMP%\PortailOutils-demarrage.log`, confirme
+que la configuration est bien lue :
+
+```
+configuration lue — catalogue distant : configuré
+```
+
+Si elle indique `absent`, le `portail.config.json` n'est pas au bon endroit :
+il doit être dans le sous-dossier `resources` de l'installation, pas à côté de
+l'exécutable.
+
+---
+
+## 6. Revenir en arrière
+
+Chaque poste conserve la version précédente avant de la remplacer :
+
+```powershell
+Copy-Item "$env:APPDATA\Portail Outils\apps.previous.json" `
+          "$env:APPDATA\Portail Outils\apps.json" -Force
+```
+
+Puis relancez l'application. Si un catalogue publié pose problème, le plus
+simple reste de republier la version précédente avec un numéro **supérieur**
+(par exemple `2.0.5` après un `2.0.4` fautif) : les postes la reprendront
+automatiquement.
+
+---
+
+## 7. Erreurs courantes
+
+| Symptôme | Cause probable |
+| --- | --- |
+| Rien ne se met à jour | La `version` n'a pas changé — c'est le seul déclencheur. |
+| Un outil a disparu après publication | Son `url` ou son `path` a été refusé par la validation. Lancez `-ValidateOnly`. |
+| Aucun poste ne récupère | Adresse injoignable, ou projet GitLab privé sans accès anonyme. |
+| `catalogue distant : absent` dans la trace | `portail.config.json` mal placé (il va dans `resources\`). |
+| Les tuiles d'accueil sont ternes | `categoryMeta` incomplet : icône, couleur et description par catégorie. |
+| Un outil installé ne se lance pas | `path` inexistant sur ce poste : *« Le logiciel n'est pas installé sur ce poste »*. |
+
+---
+
+## 8. Liste de contrôle avant chaque publication
+
+- [ ] `-ValidateOnly` ne signale **aucune** erreur bloquante.
+- [ ] Les avertissements ont été lus.
+- [ ] Les URL et chemins locaux ont été testés sur un poste réel.
+- [ ] La version a bien été incrémentée.
+- [ ] La publication a réussi (`[OK] Publié`).
+- [ ] Un poste pilote a récupéré la nouvelle version avant la diffusion générale.
