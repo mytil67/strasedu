@@ -89,5 +89,11 @@
       "artifactName": "StrasEdu-${version}-portable.${ext}",
       "splashImage": "build/splash.bmp"
     }
+  },
+  "allowScripts": {
+    "electron": true
+  },
+  "overrides": {
+    "yauzl": "^3.3.1"
   }
 }
