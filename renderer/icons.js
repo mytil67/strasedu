@@ -97,6 +97,11 @@
       '<path d="m3.8 13.8 3.6-3.4 2.8 2.6 2.4-2.2 3.4 3.2"></path>' +
       '<path d="M8.6 20.6h9.6a2.4 2.4 0 0 0 2.4-2.4V8.4"></path>',
 
+    /* Rotation du carrousel d'informations. */
+    pause: '<path d="M9.6 5.4v13.2M14.4 5.4v13.2"></path>',
+
+    play: '<path d="M8.8 5.8 17.6 12l-8.8 6.2z"></path>',
+
     arrowUpRight:
       '<path d="M7.2 16.8 16.8 7.2"></path><path d="M8.8 7.2h8v8"></path>',
 

@@ -116,8 +116,14 @@ et un lien « En savoir plus », ouvert dans le navigateur du poste.
 
 Le carrousel avance seul toutes les sept secondes ; il s'arrête dès que la
 souris s'en approche ou qu'un élément reçoit le focus, et reste immobile si le
-poste demande de réduire les animations. Flèches et pastilles permettent de
-circuler au clavier comme à la souris.
+poste demande de réduire les animations. Un bouton de pause l'arrête pour de
+bon — une rotation automatique doit pouvoir être interrompue, pas seulement
+suspendue — et flèches et pastilles permettent de circuler au clavier comme à la
+souris.
+
+Sa hauteur est **fixe** (232 px, 196 px en densité compacte) : quelle que soit
+l'image fournie, le carrousel ne peut pas envahir l'écran. La zone image garde
+un rapport 16/9 constant, à toutes les tailles de fenêtre.
 
 ### Les outils mis en avant
 

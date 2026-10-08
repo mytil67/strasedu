@@ -43,7 +43,9 @@
   // Hauteur de réduction demandée au sélecteur d'image, selon l'usage : une
   // vignette d'outil se voit en grand, un bandeau d'information reste modeste.
   var APP_IMAGE_HEIGHT = 320;
-  var NEWS_IMAGE_HEIGHT = 200;
+  // Le bandeau du carrousel s'affiche sur 230 px de haut : l'enregistrer sur
+  // 200 le ferait agrandir, donc paraître légèrement flou.
+  var NEWS_IMAGE_HEIGHT = 240;
 
   var els = {};
 

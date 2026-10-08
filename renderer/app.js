@@ -163,6 +163,9 @@
     prefs: {},
     capabilities: {},
     sync: { state: "ok", text: "" },
+    // Diapositive courante du carrousel : conservée d'un rendu à l'autre, pour
+    // qu'une mise en favori ne ramène pas l'utilisateur à la première.
+    slideIndex: 0,
     ready: false
   };
 
@@ -723,10 +726,18 @@
 
     var nav = many
       ? '<span class="section-action carousel-nav">' +
+        // Pause explicite : une rotation automatique doit pouvoir être arrêtée
+        // pour de bon, pas seulement suspendue tant que le pointeur traîne
+        // dessus (WCAG 2.2.2).
+        '<button class="iconbtn iconbtn-sm" type="button" data-slide-pause aria-pressed="false" ' +
+        'aria-label="Mettre la rotation en pause" title="Mettre la rotation en pause">' +
+        svg("pause", 16) + "</button>" +
         '<button class="iconbtn iconbtn-sm" type="button" data-slide-prev ' +
-        'aria-label="Information précédente">' + svg("chevronLeft", 16) + "</button>" +
+        'aria-label="Information précédente" title="Information précédente">' +
+        svg("chevronLeft", 16) + "</button>" +
         '<button class="iconbtn iconbtn-sm" type="button" data-slide-next ' +
-        'aria-label="Information suivante">' + svg("chevronRight", 16) + "</button>" +
+        'aria-label="Information suivante" title="Information suivante">' +
+        svg("chevronRight", 16) + "</button>" +
         "</span>"
       : "";
 
@@ -870,6 +881,19 @@
       window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches
     );
 
+    // Une machine qui demande moins d'animations ne fait pas tourner le
+    // carrousel : le bouton de pause y apparaît alors déjà enfoncé.
+    var paused = calm;
+
+    /**
+     * Diapositive visée par la dernière navigation. On ne peut pas se fier à la
+     * position observée : pendant l'animation, elle est encore celle d'avant,
+     * si bien que deux clics rapprochés sur « suivant » n'avançaient que d'une
+     * diapositive.
+     */
+    var target = 0;
+    var movedAt = 0;
+
     function currentIndex() {
       var best = 0;
       var closest = Infinity;
@@ -884,18 +908,77 @@
     }
 
     function sync() {
-      var index = currentIndex();
+      // Après un déplacement demandé, on laisse l'animation se terminer avant de
+      // réinterpréter la position : sinon un défilement à la molette ou au
+      // trackpad reprendrait la main sur la diapositive visée.
+      if (Date.now() - movedAt > 700) {
+        target = currentIndex();
+        state.slideIndex = target;
+      }
       Array.prototype.forEach.call(root.querySelectorAll("[data-slide-dot]"), function (dot, i) {
-        dot.setAttribute("aria-current", i === index ? "true" : "false");
+        dot.setAttribute("aria-current", i === target ? "true" : "false");
       });
     }
 
     function go(index) {
-      var target = slides[(index + slides.length) % slides.length];
-      if (!target) return;
+      var wanted = (index + slides.length) % slides.length;
+      var node = slides[wanted];
+      if (!node) return;
+      target = wanted;
+      state.slideIndex = wanted;
+      movedAt = Date.now();
       track.scrollTo({
-        left: target.offsetLeft - track.offsetLeft,
+        left: node.offsetLeft - track.offsetLeft,
         behavior: calm ? "auto" : "smooth"
+      });
+      Array.prototype.forEach.call(root.querySelectorAll("[data-slide-dot]"), function (dot, i) {
+        dot.setAttribute("aria-current", i === wanted ? "true" : "false");
+      });
+    }
+
+    function startCarousel() {
+      if (paused) return;
+      stopCarousel();
+      carouselTimer = window.setInterval(function () {
+        if (document.hidden) return;
+        go(target + 1);
+      }, 7000);
+    }
+
+    /**
+     * Navigation demandée par l'utilisateur : elle repart pour un tour complet.
+     * Sans cela, une flèche cliquée juste avant l'échéance est aussitôt
+     * démentie par la rotation, ce qui donne l'impression d'un carrousel
+     * capricieux.
+     */
+    function manual(delta) {
+      go(target + delta);
+      startCarousel();
+    }
+
+    var pause = root.querySelector("[data-slide-pause]");
+
+    function paintPause() {
+      if (!pause) return;
+      var label = paused ? "Reprendre la rotation des informations" : "Mettre la rotation en pause";
+      pause.innerHTML = svg(paused ? "play" : "pause", 16);
+      pause.setAttribute("aria-pressed", paused ? "true" : "false");
+      pause.setAttribute("aria-label", label);
+      pause.title = label;
+    }
+
+    if (pause) {
+      paintPause();
+      pause.addEventListener("click", function () {
+        paused = !paused;
+        paintPause();
+        if (paused) {
+          stopCarousel();
+          announce("Rotation des informations en pause");
+        } else {
+          startCarousel();
+          announce("Rotation des informations reprise");
+        }
       });
     }
 
@@ -903,18 +986,19 @@
     var next = root.querySelector("[data-slide-next]");
     if (prev) {
       prev.addEventListener("click", function () {
-        go(currentIndex() - 1);
+        manual(-1);
       });
     }
     if (next) {
       next.addEventListener("click", function () {
-        go(currentIndex() + 1);
+        manual(1);
       });
     }
 
     Array.prototype.forEach.call(root.querySelectorAll("[data-slide-dot]"), function (dot) {
       dot.addEventListener("click", function () {
         go(Number(dot.getAttribute("data-index")) || 0);
+        startCarousel();
       });
     });
 
@@ -925,13 +1009,13 @@
     root.addEventListener("focusin", stopCarousel);
     root.addEventListener("focusout", startCarousel);
 
-    function startCarousel() {
-      if (calm) return;
-      stopCarousel();
-      carouselTimer = window.setInterval(function () {
-        if (document.hidden) return;
-        go(currentIndex() + 1);
-      }, 7000);
+    // On revient sur la diapositive quittée : un rendu du contenu — une mise en
+    // favori, par exemple — ne doit pas ramener à la première information.
+    if (state.slideIndex > 0 && state.slideIndex < slides.length) {
+      track.scrollTo({
+        left: slides[state.slideIndex].offsetLeft - track.offsetLeft,
+        behavior: "auto"
+      });
     }
 
     sync();
