@@ -381,7 +381,24 @@ async function run(win) {
   check("outil supprimé", !m.apps.some((a) => a.id === "wikipedia"));
   check("compte d'outils revenu à 23", m.apps.length === 23, String(m.apps.length));
 
-  /* ── 9. Silence de la console ──────────────────────────────────────────── */
+  /* ── 9. Couleur propre à l'administration ──────────────────────────────── */
+  step("couleur d'accent");
+  // Les règles de admin.css doivent l'emporter sur celles de app.css dans les
+  // deux thèmes : c'est un raisonnement de cascade, donc à vérifier.
+  const accents = await js(
+    "(()=>{const r=document.documentElement;const before=r.getAttribute('data-theme');" +
+    "const read=()=>getComputedStyle(r).getPropertyValue('--accent').trim();" +
+    "r.setAttribute('data-theme','light');const light=read();" +
+    "r.setAttribute('data-theme','dark');const dark=read();" +
+    "r.setAttribute('data-theme',before);return {light:light,dark:dark};})()"
+  );
+  check("accent violet en thème clair", accents.light === "#7c3aed", accents.light);
+  check("accent violet clair en thème sombre", accents.dark === "#a78bfa", accents.dark);
+  check("accent distinct du vert des enseignants",
+    accents.light !== "#0f9d63" && accents.dark !== "#0f9d63",
+    accents.light + " / " + accents.dark);
+
+  /* ── 10. Silence de la console ─────────────────────────────────────────── */
   check("aucune erreur JavaScript", consoleErrors.length === 0, consoleErrors.join(" | "));
 }
 
