@@ -15,8 +15,9 @@
     "pack": "electron-builder --dir",
     "build": "electron-builder --win nsis",
     "build:portable": "electron-builder --win portable",
-    "build:all": "npm run build && npm run build:portable",
-    "fix-builder-cache": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/fix-builder-cache.ps1"
+    "build:all": "npm run build && npm run build:portable && npm run build:admin",
+    "fix-builder-cache": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/fix-builder-cache.ps1",
+    "build:admin": "electron-builder --config electron-builder.admin.json --win"
   },
   "devDependencies": {
     "electron": "^33.4.11",
@@ -48,14 +49,20 @@
       {
         "from": "icons",
         "to": "icons",
-        "filter": ["tray*.png", "icon.ico", "icon.png"]
+        "filter": [
+          "tray*.png",
+          "icon.ico",
+          "icon.png"
+        ]
       }
     ],
     "win": {
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "icons/icon.ico",

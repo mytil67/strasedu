@@ -1,0 +1,65 @@
+{
+  "appId": "fr.strasedu.portail-outils-admin",
+  "productName": "Portail Outils Administration",
+  "copyright": "© STRAS EDU",
+  "directories": {
+    "output": "dist-admin",
+    "buildResources": "build"
+  },
+  "extraMetadata": {
+    "main": "admin/main.js",
+    "description": "Portail Outils — outil d'administration du catalogue"
+  },
+  "files": [
+    "admin/**/*",
+    "!admin/selfcheck.js",
+    "lib/**/*",
+    "renderer/icons.js",
+    "styles/app.css",
+    "icons/icon.ico",
+    "icons/icon.png"
+  ],
+  "extraResources": [
+    {
+      "from": "apps.json",
+      "to": "apps.json"
+    },
+    {
+      "from": "icons",
+      "to": "icons",
+      "filter": ["icon.ico", "icon.png"]
+    }
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      },
+      {
+        "target": "portable",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "icons/icon.ico",
+    "requestedExecutionLevel": "asInvoker"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowElevation": true,
+    "allowToChangeInstallationDirectory": false,
+    "createDesktopShortcut": "always",
+    "createStartMenuShortcut": true,
+    "shortcutName": "Portail Outils Administration",
+    "uninstallDisplayName": "Portail Outils Administration ${version}",
+    "deleteAppDataOnUninstall": false,
+    "runAfterFinish": true,
+    "installerIcon": "icons/icon.ico",
+    "language": "1036",
+    "artifactName": "PortailOutils-Administration-${version}-setup.${ext}"
+  },
+  "portable": {
+    "artifactName": "PortailOutils-Administration-${version}-portable.${ext}"
+  }
+}

@@ -10,16 +10,34 @@ URL, réordonner les catégories.
 
 ---
 
-## 0. L'outil d'administration (interface graphique)
+## 0. L'outil d'administration (application Windows)
 
 Tout ce qui suit peut se faire à la main dans un éditeur de texte. L'outil
 d'administration évite d'y toucher : il compose le catalogue, le valide et le
-publie.
+publie sur le partage réseau.
+
+### Installation
+
+| Fichier | Usage |
+| --- | --- |
+| `PortailOutils-Administration-2.0.0-setup.exe` | Installation classique : menu Démarrer et raccourci sur le bureau. |
+| `PortailOutils-Administration-2.0.0-portable.exe` | Aucune installation : double-clic, l'outil s'ouvre. Pratique depuis une clé USB ou un partage. |
+
+Aucun droit administrateur n'est requis, ni Node, ni npm : ce sont des
+exécutables autonomes.
+
+**Au premier lancement**, l'outil travaille sur une copie du catalogue livré,
+placée dans votre profil (`%APPDATA%\Portail Outils Administration\apps.json`).
+Vous pouvez la modifier sans risque : le catalogue installé sur les postes n'est
+touché que lorsque vous cliquez sur **Publier**.
+
+### Fabrication
 
 ```powershell
-npm install          # une seule fois
-npm run admin
+npm run build:admin     # écrit dans dist-admin/
 ```
+
+### Ce que fait chaque onglet
 
 | Onglet | Ce qu'on y fait |
 | --- | --- |
@@ -48,6 +66,8 @@ corriger : le contenu remplace celui de l'éditeur, la cible d'enregistrement ne
 change pas.
 
 ### Vérifier l'outil lui-même
+
+Réservé au développement :
 
 ```powershell
 npm run selfcheck:admin

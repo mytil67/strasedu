@@ -23,9 +23,48 @@ const path = require("path");
 
 const { normalizeCatalog, asText, safeLogo, MAX_LOGO_CHARS } = require("../lib/catalog");
 
-const APP_NAME = "Portail Outils — Administration";
+const APP_NAME = "Portail Outils Administration";
 const PROJECT_DIR = path.resolve(__dirname, "..");
-const DEFAULT_CATALOG = path.join(PROJECT_DIR, "apps.json");
+
+/**
+ * Ressource livrée à côté de l'archive applicative. La couche native de
+ * Windows attend un vrai chemin de fichier, pas une entrée d'asar.
+ */
+function assetPath(...parts) {
+  const packaged = path.join(process.resourcesPath || "", ...parts);
+  if (app.isPackaged && fs.existsSync(packaged)) return packaged;
+  return path.join(PROJECT_DIR, ...parts);
+}
+
+/** Catalogue livré avec l'outil : le point de départ de l'administrateur. */
+function bundledCatalog() {
+  return assetPath("apps.json");
+}
+
+/**
+ * Copie de travail, dans le profil de l'utilisateur. L'application installée
+ * ne peut pas écrire dans sa propre archive : on travaille donc sur une copie,
+ * créée au premier lancement à partir du catalogue livré.
+ */
+function workingCatalogPath() {
+  return path.join(app.getPath("userData"), "apps.json");
+}
+
+function ensureWorkingCatalog() {
+  const target = workingCatalogPath();
+  if (fs.existsSync(target)) return target;
+
+  const source = bundledCatalog();
+  if (!fs.existsSync(source)) return null;
+
+  try {
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.copyFileSync(source, target);
+    return target;
+  } catch {
+    return null;
+  }
+}
 
 let mainWindow = null;
 
@@ -180,7 +219,7 @@ function createWindow() {
     title: APP_NAME,
     backgroundColor: nativeTheme.shouldUseDarkColors ? "#171a1c" : "#f3f6f5",
     autoHideMenuBar: true,
-    icon: path.join(PROJECT_DIR, "icons", "icon.ico"),
+    icon: assetPath("icons", "icon.ico"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -199,9 +238,13 @@ function createWindow() {
 function registerIpc() {
   ipcMain.handle("admin:state", () => {
     const prefs = readPrefs();
-    const filePath = prefs.lastFilePath && fs.existsSync(prefs.lastFilePath)
+
+    // Fichier de travail : le dernier ouvert, sinon une copie du catalogue
+    // livré, créée dans le profil pour être modifiable.
+    let filePath = prefs.lastFilePath && fs.existsSync(prefs.lastFilePath)
       ? prefs.lastFilePath
-      : (fs.existsSync(DEFAULT_CATALOG) ? DEFAULT_CATALOG : null);
+      : null;
+    if (!filePath) filePath = ensureWorkingCatalog();
 
     let catalog = null;
     let error = null;
@@ -217,7 +260,7 @@ function registerIpc() {
       catalog,
       filePath,
       sharePath: prefs.sharePath || "",
-      defaultCatalog: DEFAULT_CATALOG,
+      defaultCatalog: bundledCatalog(),
       appVersion: app.getVersion(),
       dark: nativeTheme.shouldUseDarkColors,
       error
@@ -228,7 +271,7 @@ function registerIpc() {
     const prefs = readPrefs();
     const result = await dialog.showOpenDialog(mainWindow, {
       title: "Ouvrir un catalogue",
-      defaultPath: prefs.lastFilePath || DEFAULT_CATALOG,
+      defaultPath: prefs.lastFilePath || bundledCatalog(),
       filters: [{ name: "Catalogue", extensions: ["json"] }],
       properties: ["openFile"]
     });
@@ -263,7 +306,15 @@ function registerIpc() {
       return { ok: false, problems: check.problems, badIds: check.badIds, warnings: check.warnings };
     }
 
-    const filePath = targetPath || readPrefs().lastFilePath || DEFAULT_CATALOG;
+    const filePath = targetPath || readPrefs().lastFilePath || ensureWorkingCatalog();
+    if (!filePath) {
+      return {
+        ok: false,
+        problems: ["Aucun catalogue de travail : utilisez « Enregistrer sous… »."],
+        badIds: check.badIds,
+        warnings: check.warnings
+      };
+    }
     try {
       writeCatalogFile(filePath, catalog);
       writePrefs({ lastFilePath: filePath });
@@ -286,7 +337,7 @@ function registerIpc() {
 
     const result = await dialog.showSaveDialog(mainWindow, {
       title: "Enregistrer le catalogue",
-      defaultPath: readPrefs().lastFilePath || DEFAULT_CATALOG,
+      defaultPath: readPrefs().lastFilePath || workingCatalogPath(),
       filters: [{ name: "Catalogue", extensions: ["json"] }]
     });
     if (result.canceled || !result.filePath) return { ok: false, canceled: true };

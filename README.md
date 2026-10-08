@@ -130,16 +130,22 @@ Le **catalogue** (outils, catégories, descriptions, URL) se met à jour tout
 seul : une poussée de `apps.json` et les postes suivent en 30 minutes. Ajouter
 un outil ne demande aucun déploiement.
 
-**Avec l'interface graphique** — c'est la voie normale :
+**Avec l'application d'administration** — c'est la voie normale, et elle ne
+demande ni Node ni npm :
 
-```powershell
-npm run admin
-```
+| Fichier | Usage |
+| --- | --- |
+| `dist-admin\PortailOutils-Administration-2.0.0-setup.exe` | Installation classique (menu Démarrer, raccourci bureau). |
+| `dist-admin\PortailOutils-Administration-2.0.0-portable.exe` | Aucune installation : double-clic. |
 
 Onglets *Outils*, *Catégories*, *Établissement* : on compose le catalogue, on
 choisit les icônes et le logo officiel, puis on publie sur le partage réseau.
 La version est incrémentée automatiquement, et un catalogue invalide est refusé
 en nommant l'outil fautif.
+
+```powershell
+npm run build:admin     # fabrique les deux exécutables dans dist-admin/
+```
 
 **En ligne de commande** — pour un catalogue géré en gestion de version :
 
@@ -176,12 +182,13 @@ npm run fix-builder-cache  # prépare le cache electron-builder (une fois)
 ## Fabrication des installateurs
 
 ```powershell
-npm run build           # PortailOutils-2.0.0-x64-setup.exe   (+ version portable)
-npm run build:portable  # PortailOutils-2.0.0-portable.exe
-npm run build:all       # les deux
+npm run build           # Portail Outils            → dist\
+npm run build:portable  #   version portable
+npm run build:admin     # Portail Outils Administration → dist-admin\
+npm run build:all       # les trois
 ```
 
-Les fichiers sont écrits dans `dist/`.
+Les fichiers sont écrits dans `dist/` et `dist-admin/`.
 
 > **Première fabrication sur un poste Windows** : electron-builder télécharge
 > un paquet d'outils de signature qui contient des liens symboliques macOS.
