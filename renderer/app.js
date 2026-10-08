@@ -1069,6 +1069,15 @@
     renderDrawer();
   }
 
+  /**
+   * Bouton de fermeture du panneau, avec son libellé. La croix de l'en-tête ne
+   * suffit pas : tout le monde ne pense pas à cliquer dessus, et un panneau dont
+   * on ne trouve pas la sortie est une gêne. Le clic à côté ferme aussi.
+   */
+  function drawerCloseButton() {
+    return '<button class="btn" type="button" data-action="drawer-close">Fermer</button>';
+  }
+
   function closeDrawer() {
     if (!state.drawer) return;
     state.drawer = null;
@@ -1112,13 +1121,15 @@
           ? '<div class="drawer-figure"><img alt="" src="' + esc(item.image) + '"></div>'
           : "") +
         (item.date ? '<p class="drawer-date">' + esc(item.date) + "</p>" : "") +
-        (item.title ? '<h3 class="drawer-heading">' + esc(item.title) + "</h3>" : "") +
+        // Le titre est deja dans l'en-tete du panneau : le repeter ici le
+        // faisait apparaitre deux fois a cent pixels d'ecart.
         (item.text ? '<p class="drawer-text">' + esc(item.text) + "</p>" : "");
-      els.drawerFoot.innerHTML = item.url
-        ? '<button class="btn btn-primary" type="button" data-action="news-link" data-id="' +
-          esc(item.id) + '">' + esc(item.linkLabel || "En savoir plus") +
-          svg("arrowUpRight", 14) + "</button>"
-        : "";
+      els.drawerFoot.innerHTML =
+        (item.url
+          ? '<button class="btn btn-primary" type="button" data-action="news-link" data-id="' +
+            esc(item.id) + '">' + esc(item.linkLabel || "En savoir plus") +
+            svg("arrowUpRight", 14) + "</button>"
+          : "") + drawerCloseButton();
     } else {
       var app = state.byId[spec.id];
       if (!app) {
@@ -1155,7 +1166,8 @@
         esc(app.id) + '">' + esc(app.type === "local" ? "Lancer" : "Ouvrir") + "</button>" +
         '<button class="btn" type="button" data-action="fav" data-id="' + esc(app.id) +
         '" aria-pressed="' + (favorite ? "true" : "false") + '" aria-label="' + label +
-        '" title="' + label + '">' + svg("star", 15) + esc(label) + "</button>";
+        '" title="' + label + '">' + svg("star", 15) + esc(label) + "</button>" +
+        drawerCloseButton();
 
       // La couleur de la catégorie décore le panneau comme elle décore les
       // cartes : posée par CSSOM, donc compatible avec la CSP.
@@ -2369,6 +2381,9 @@
         case "reload-catalog":
           reloadCatalog();
           break;
+        case "drawer-close":
+          closeDrawer();
+          break;
         case "reset-favorites":
           state.favorites = [];
           if (bridge) bridge.setFavorites([]);
@@ -2426,6 +2441,20 @@
     els.dialogClose.addEventListener("click", closeDialog);
 
     if (els.drawerClose) els.drawerClose.addEventListener("click", closeDrawer);
+
+    /*
+       Un clic à côté du panneau le referme. Les déclencheurs sont exclus : ils
+       ouvrent leur propre contenu, et sans cette exception le clic d'ouverture
+       remonterait jusqu'ici pour refermer aussitôt.
+    */
+    document.addEventListener("click", function (event) {
+      if (!state.drawer) return;
+      if (els.drawer.contains(event.target)) return;
+      if (event.target.closest && event.target.closest('[data-action="preview"], [data-action="news-open"]')) {
+        return;
+      }
+      closeDrawer();
+    });
 
     els.palette.addEventListener("mousedown", function (event) {
       if (event.target === els.palette) closePalette();

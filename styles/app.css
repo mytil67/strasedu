@@ -2350,7 +2350,9 @@ html[data-density="compact"] .section {
   display: flex;
   flex-direction: column;
   width: min(400px, 92vw);
-  background: var(--surface-1);
+  /* Opaque, et non translucide : la fenêtre est en Mica, et le texte se
+     lisait à travers — le bureau apparaissait derrière les informations. */
+  background: var(--surface-3);
   border-left: 1px solid var(--stroke-strong);
   /* Une ombre portée plutôt qu'un voile : le panneau se détache du catalogue
      sans l'éteindre. */
