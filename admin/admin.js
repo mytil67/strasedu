@@ -21,10 +21,29 @@
     tab: "apps",
     appId: null,
     catName: null,
+    newsIndex: null,
+    highIndex: null,
+    highFilter: "",
     idTouched: false,
     filter: "",
     validation: { ok: true, problems: [], badIds: [], warnings: [] }
   };
+
+  // Plafonds du catalogue, recopiés de lib/catalog.js : le rendu n'a pas accès
+  // au module Node, et l'outil doit désactiver la commande plutôt que laisser
+  // saisir ce qui serait écarté en silence à la validation.
+  var MAX_SCREENSHOTS = 4;
+  var MAX_NEWS_ITEMS = 12;
+  var MAX_HIGHLIGHTS = 3;
+  var MAX_HIGHLIGHT_APPS = 12;
+
+  // Libellé que la validation applique quand celui du groupe est vide.
+  var DEFAULT_HIGHLIGHT_LABEL = "À la une";
+
+  // Hauteur de réduction demandée au sélecteur d'image, selon l'usage : une
+  // vignette d'outil se voit en grand, un bandeau d'information reste modeste.
+  var APP_IMAGE_HEIGHT = 320;
+  var NEWS_IMAGE_HEIGHT = 200;
 
   var els = {};
 
@@ -171,9 +190,13 @@
       var haystack = (app.name + " " + app.category + " " + (app.url || app.path || "")).toLowerCase();
       if (needle && haystack.indexOf(needle) < 0) return;
 
-      var mark = app.icon
-        ? svg(app.icon, 17)
-        : esc(app.mark || String(app.name || "").slice(0, 2));
+      // La vignette choisie remplace la pastille : c'est elle que les
+      // enseignants reconnaissent dans l'application.
+      var mark = app.image
+        ? '<img alt="" src="' + esc(app.image) + '">'
+        : app.icon
+          ? svg(app.icon, 17)
+          : esc(app.mark || String(app.name || "").slice(0, 2));
 
       html +=
         '<li><button type="button" class="admin-item" data-app="' + esc(app.id) + '" ' +
@@ -204,6 +227,38 @@
     els.fCategory.innerHTML = html;
   }
 
+  /** Captures d'écran de l'outil, sans matérialiser un tableau vide. */
+  function appShots(app) {
+    return Array.isArray(app.screenshots) ? app.screenshots : [];
+  }
+
+  /**
+   * Affiche les visuels de l'outil sélectionné. La vignette et les captures
+   * sont posées par la couche native (data URI), donc affichables directement.
+   */
+  function renderAppVisuals(app) {
+    els.appImagePreview.innerHTML = app.image
+      ? '<img alt="Vignette de l\'outil" src="' + esc(app.image) + '">'
+      : "aucune";
+
+    var shots = appShots(app);
+    var html = "";
+    shots.forEach(function (shot, index) {
+      html +=
+        '<li class="shot-item">' +
+        '<span class="shot-thumb"><img alt="Capture d\'écran ' + (index + 1) +
+        '" src="' + esc(shot) + '"></span>' +
+        '<button class="btn btn-sm" type="button" data-act="shot-remove" data-shot="' + index +
+        '" aria-label="Retirer la capture d\'écran ' + (index + 1) + '">Retirer</button>' +
+        "</li>";
+    });
+    if (!html) html = '<li class="admin-hint">Aucune capture d\'écran.</li>';
+    els.appShots.innerHTML = html;
+
+    els.appShotAdd.disabled = shots.length >= MAX_SCREENSHOTS;
+    els.appShotAdd.setAttribute("aria-disabled", shots.length >= MAX_SCREENSHOTS ? "true" : "false");
+  }
+
   function loadAppForm() {
     var app = state.appId ? findApp(state.appId) : null;
 
@@ -229,6 +284,8 @@
       renderApps();
       scheduleValidate();
     });
+
+    renderAppVisuals(app);
   }
 
   function setType(type) {
@@ -246,6 +303,9 @@
 
   function addApp() {
     var base = "nouvel-outil";
+    // Aucun visuel par défaut : tant qu'aucune vignette n'est choisie, l'outil
+    // garde sa pastille à deux lettres. Les images ne sont embarquées dans le
+    // catalogue que si l'administrateur en désigne une.
     var app = {
       id: uniqueId(base),
       name: "Nouvel outil",
@@ -278,6 +338,619 @@
     loadAppForm();
     scheduleValidate();
     toast("Outil supprimé", app.name);
+  }
+
+  /* ═══ Visuels d'un outil ════════════════════════════════════════════════ */
+
+  /**
+   * Demande une image à la couche native. Elle seule ouvre un dialogue et
+   * réduit l'image ; le rendu se contente de ranger le data URI reçu, que la
+   * validation du catalogue a déjà accepté.
+   */
+  function pickImage(options, apply) {
+    bridge.pickImage(options).then(function (result) {
+      if (!result || result.canceled) return;
+      if (!result.ok) {
+        toast("Image refusée", result.error, "warn");
+        return;
+      }
+      apply(result.image, result.source);
+    });
+  }
+
+  function pickAppImage() {
+    var app = findApp(state.appId);
+    if (!app) return;
+    pickImage({ height: APP_IMAGE_HEIGHT, title: "Choisir la vignette de l'outil" },
+      function (image, source) {
+        // L'outil peut avoir changé pendant le dialogue : on relit la sélection.
+        var target = findApp(state.appId);
+        if (!target) return;
+        target.image = image;
+        renderAppVisuals(target);
+        renderApps();
+        scheduleValidate();
+        toast("Vignette définie", source);
+      });
+  }
+
+  function clearAppImage() {
+    var app = findApp(state.appId);
+    if (!app || !app.image) return;
+    delete app.image;
+    renderAppVisuals(app);
+    renderApps();
+    scheduleValidate();
+  }
+
+  function addScreenshot() {
+    var app = findApp(state.appId);
+    if (!app || appShots(app).length >= MAX_SCREENSHOTS) return;
+    pickImage({ height: APP_IMAGE_HEIGHT, title: "Choisir une capture d'écran" },
+      function (image, source) {
+        var target = findApp(state.appId);
+        if (!target || appShots(target).length >= MAX_SCREENSHOTS) return;
+        target.screenshots = appShots(target).concat([image]);
+        renderAppVisuals(target);
+        renderApps();
+        scheduleValidate();
+        toast("Capture ajoutée", source);
+      });
+  }
+
+  function removeScreenshot(index) {
+    var app = findApp(state.appId);
+    if (!app) return;
+    var next = appShots(app).filter(function (shot, position) {
+      return position !== index;
+    });
+    if (next.length) app.screenshots = next;
+    else delete app.screenshots;
+    renderAppVisuals(app);
+    renderApps();
+    scheduleValidate();
+  }
+
+  /* ═══ Département : informations du carrousel ═══════════════════════════ */
+
+  /**
+   * Le carrousel n'est écrit dans le catalogue qu'à partir de la première
+   * information : un objet vide ne serait pas conservé par la validation, il
+   * n'a donc rien à faire dans le fichier.
+   */
+  function news() {
+    if (!state.catalog.news || typeof state.catalog.news !== "object" ||
+        Array.isArray(state.catalog.news)) {
+      state.catalog.news = { items: [] };
+    }
+    if (!Array.isArray(state.catalog.news.items)) state.catalog.news.items = [];
+    return state.catalog.news;
+  }
+
+  function newsItems() {
+    var node = state.catalog.news;
+    return node && Array.isArray(node.items) ? node.items : [];
+  }
+
+  function currentNews() {
+    var index = state.newsIndex;
+    return index == null ? null : newsItems()[index] || null;
+  }
+
+  /** Retire l'en-tête vide laissé derrière la dernière suppression. */
+  function pruneNews() {
+    var node = state.catalog.news;
+    if (!node) return;
+    if (newsItems().length) return;
+    if (String(node.title || "").trim() || String(node.subtitle || "").trim()) return;
+    delete state.catalog.news;
+  }
+
+  function uniqueNewsId() {
+    var taken = {};
+    newsItems().forEach(function (item) {
+      taken[item.id] = true;
+    });
+    var n = newsItems().length + 1;
+    while (taken["info-" + n]) n += 1;
+    return "info-" + n;
+  }
+
+  /** Un lien n'est publié qu'en http(s) : la validation écarte le reste. */
+  function isHttpUrl(value) {
+    try {
+      var parsed = new URL(String(value).trim());
+      return parsed.protocol === "https:" || parsed.protocol === "http:";
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function renderNews() {
+    var items = newsItems();
+    if (state.newsIndex != null && state.newsIndex >= items.length) {
+      state.newsIndex = items.length ? items.length - 1 : null;
+    }
+
+    var html = "";
+    items.forEach(function (item, index) {
+      var thumb = item.image
+        ? '<span class="news-thumb"><img alt="" src="' + esc(item.image) + '"></span>'
+        : '<span class="news-thumb">' + svg("bullhorn", 16) + "</span>";
+      html +=
+        '<li class="news-item" data-news-index="' + index + '">' +
+        '<button type="button" class="news-main" data-act="news-select" ' +
+        'aria-selected="' + (index === state.newsIndex ? "true" : "false") + '">' +
+        thumb +
+        '<span class="news-item-body">' +
+        '<span class="news-item-title">' +
+        esc(item.title || item.text || "(sans titre)") + "</span>" +
+        '<span class="news-item-text">' + esc(item.text || item.url || "") + "</span>" +
+        "</span></button>" +
+        '<span class="news-tools">' +
+        '<button type="button" class="iconbtn" data-act="news-up" ' +
+        'aria-label="Monter l\'information ' + (index + 1) + '"' +
+        (index === 0 ? " disabled" : "") + ">" + svg("chevronRight", 16, "rot-up") + "</button>" +
+        '<button type="button" class="iconbtn" data-act="news-down" ' +
+        'aria-label="Descendre l\'information ' + (index + 1) + '"' +
+        (index === items.length - 1 ? " disabled" : "") + ">" +
+        svg("chevronRight", 16, "rot-down") + "</button>" +
+        '<button type="button" class="iconbtn" data-act="news-delete" ' +
+        'aria-label="Supprimer l\'information ' + (index + 1) + '">' + svg("x", 15) + "</button>" +
+        "</span></li>";
+    });
+
+    if (!html) html = '<li class="admin-hint admin-hint-item">Aucune information.</li>';
+    els.newsList.innerHTML = html;
+
+    els.newsCount.textContent = items.length
+      ? items.length + " / " + MAX_NEWS_ITEMS + " informations"
+      : "Aucune information.";
+    els.newsAdd.disabled = items.length >= MAX_NEWS_ITEMS;
+    els.newsAdd.setAttribute("aria-disabled", items.length >= MAX_NEWS_ITEMS ? "true" : "false");
+  }
+
+  function loadNewsForm() {
+    var item = currentNews();
+    els.newsForm.hidden = !item;
+    els.newsHint.hidden = !!item;
+    if (!item) return;
+
+    els.nTitle.value = item.title || "";
+    els.nText.value = item.text || "";
+    els.dDate.value = item.date || "";
+    els.nUrl.value = item.url || "";
+    // Le libellé par défaut est déjà celui de l'application : on laisse le
+    // champ vide, son texte indicatif l'annonce.
+    els.nLinkLabel.value = item.linkLabel === "En savoir plus" ? "" : item.linkLabel || "";
+    els.nImagePreview.innerHTML = item.image
+      ? '<img alt="Bandeau de l\'information" src="' + esc(item.image) + '">'
+      : "aucun";
+
+    renderNewsCounts();
+    renderUrlState();
+  }
+
+  function renderNewsCounts() {
+    els.nTitleCount.textContent = els.nTitle.value.length + " / 120";
+    els.nTextCount.textContent = els.nText.value.length + " / 600";
+    els.dDateCount.textContent = els.dDate.value.length + " / 32";
+    els.nLinkCount.textContent = els.nLinkLabel.value.length + " / 60";
+  }
+
+  /**
+   * Signale une adresse non http(s) : elle serait écartée en silence à la
+   * publication, donc on refuse la saisie et on l'explique. Le libellé du lien
+   * n'a de sens qu'avec un lien : il reste désactivé tant qu'il n'y en a pas.
+   */
+  function renderUrlState() {
+    var item = currentNews();
+    var raw = els.nUrl.value.trim();
+    var bad = !!raw && !isHttpUrl(raw);
+    els.nUrl.setAttribute("aria-invalid", bad ? "true" : "false");
+    els.nUrlNote.textContent = bad
+      ? "Adresse refusée : seuls http et https sont publiés."
+      : "";
+
+    var linked = !!(item && item.url);
+    els.nLinkLabel.disabled = !linked;
+    els.nLinkLabel.setAttribute("aria-disabled", linked ? "false" : "true");
+    els.nLinkNote.textContent = linked ? "" : "Le libellé n'est publié qu'avec un lien.";
+  }
+
+  function selectNews(index) {
+    state.newsIndex = index;
+    renderNews();
+    loadNewsForm();
+  }
+
+  function addNews() {
+    var node = news();
+    if (node.items.length >= MAX_NEWS_ITEMS) return;
+    node.items.push({ id: uniqueNewsId(), title: "", text: "" });
+    state.newsIndex = node.items.length - 1;
+    renderNews();
+    loadNewsForm();
+    els.nTitle.focus();
+    els.nTitle.select();
+    scheduleValidate();
+  }
+
+  /**
+   * Supprime l'information demandée. Le bouton d'une ligne vise sa propre
+   * ligne (index donné) ; celui du formulaire vise la sélection.
+   */
+  function deleteNews(index) {
+    var items = newsItems();
+    var at = index >= 0 ? index : state.newsIndex;
+    var item = items[at];
+    if (!item) return;
+    if (!window.confirm("Supprimer cette information du carrousel ?")) return;
+    items.splice(at, 1);
+    // La sélection glisse sur l'information suivante, comme dans la liste.
+    state.newsIndex = items.length ? Math.min(at, items.length - 1) : null;
+    pruneNews();
+    renderNews();
+    loadNewsForm();
+    scheduleValidate();
+  }
+
+  /** Réordonner change l'ordre du carrousel : on garde la même information
+   *  sélectionnée, l'index suit le déplacement. */
+  function moveNews(index, delta) {
+    var items = newsItems();
+    var target = index + delta;
+    if (index < 0 || index >= items.length || target < 0 || target >= items.length) return;
+    var moved = items.splice(index, 1)[0];
+    items.splice(target, 0, moved);
+    state.newsIndex = target;
+    // Le formulaire porte sur la même information : le recharger ferait
+    // perdre la position du curseur pour rien.
+    renderNews();
+    scheduleValidate();
+  }
+
+  function pickNewsImage() {
+    var item = currentNews();
+    if (!item) return;
+    pickImage({ height: NEWS_IMAGE_HEIGHT, title: "Choisir le bandeau de l'information" },
+      function (image, source) {
+        var target = currentNews();
+        if (!target) return;
+        target.image = image;
+        els.nImagePreview.innerHTML =
+          '<img alt="Bandeau de l\'information" src="' + esc(image) + '">';
+        renderNews();
+        scheduleValidate();
+        toast("Bandeau défini", source);
+      });
+  }
+
+  function clearNewsImage() {
+    var item = currentNews();
+    if (!item || !item.image) return;
+    delete item.image;
+    els.nImagePreview.innerHTML = "aucun";
+    renderNews();
+    scheduleValidate();
+  }
+
+  /* ═══ Mise en avant ═════════════════════════════════════════════════════ */
+
+  /**
+   * Groupes tels que le catalogue les porte. Lecture seule : un catalogue qui
+   * n'en a pas ne doit pas en gagner par simple enregistrement.
+   */
+  function highlightGroups() {
+    return Array.isArray(state.catalog.highlights) ? state.catalog.highlights : [];
+  }
+
+  /** Index des outils par identifiant : sert à n'accepter que l'existant. */
+  function appIndex() {
+    var map = {};
+    apps().forEach(function (app) {
+      map[app.id] = app;
+    });
+    return map;
+  }
+
+  /**
+   * Identifiants retenus d'un groupe, dans l'ordre, limités aux outils qui
+   * existent encore, sans doublon et sous le plafond. L'interface ne montre
+   * jamais autre chose : un identifiant inconnu ne peut pas être coché.
+   */
+  function pickedIds(group) {
+    if (!group || !Array.isArray(group.appIds)) return [];
+    var known = appIndex();
+    var ids = [];
+    group.appIds.forEach(function (id) {
+      if (typeof id !== "string" || !known[id]) return;
+      if (ids.indexOf(id) >= 0) return;
+      if (ids.length >= MAX_HIGHLIGHT_APPS) return;
+      ids.push(id);
+    });
+    return ids;
+  }
+
+  function currentHigh() {
+    var index = state.highIndex;
+    return index == null ? null : highlightGroups()[index] || null;
+  }
+
+  /** Crée la liste au premier ajout seulement. */
+  function newHighlights() {
+    if (!Array.isArray(state.catalog.highlights)) state.catalog.highlights = [];
+    return state.catalog.highlights;
+  }
+
+  /** Un tableau vide n'apprend rien au poste : on l'oublie. */
+  function pruneHighlights() {
+    if (Array.isArray(state.catalog.highlights) && !state.catalog.highlights.length) {
+      delete state.catalog.highlights;
+    }
+  }
+
+  function renderHighlights() {
+    var list = highlightGroups();
+    if (state.highIndex != null && state.highIndex >= list.length) {
+      state.highIndex = list.length ? list.length - 1 : null;
+    }
+
+    var html = "";
+    list.forEach(function (group, index) {
+      var ids = pickedIds(group);
+      html +=
+        '<li class="admin-item-row" data-high-index="' + index + '">' +
+        '<button type="button" class="admin-item" data-high="' + index + '" ' +
+        'aria-selected="' + (index === state.highIndex ? "true" : "false") + '">' +
+        '<span class="admin-item-mark">' + svg("star", 17) + "</span>" +
+        '<span class="admin-item-body">' +
+        '<span class="admin-item-name">' +
+        esc(group.label || DEFAULT_HIGHLIGHT_LABEL) + "</span>" +
+        '<span class="admin-item-sub">' + ids.length +
+        (ids.length > 1 ? " outils" : " outil") + "</span>" +
+        "</span>" +
+        (ids.length ? "" : '<span class="admin-item-warn">sans outil</span>') +
+        "</button>" +
+        '<span class="admin-item-tools">' +
+        '<button type="button" class="iconbtn" data-act="high-up" ' +
+        'aria-label="Monter la mise en avant ' + (index + 1) + '"' +
+        (index === 0 ? " disabled" : "") + ">" +
+        svg("chevronRight", 16, "rot-up") + "</button>" +
+        '<button type="button" class="iconbtn" data-act="high-down" ' +
+        'aria-label="Descendre la mise en avant ' + (index + 1) + '"' +
+        (index === list.length - 1 ? " disabled" : "") + ">" +
+        svg("chevronRight", 16, "rot-down") + "</button>" +
+        '<button type="button" class="iconbtn" data-act="high-delete" ' +
+        'aria-label="Supprimer la mise en avant ' + (index + 1) + '">' +
+        svg("x", 15) + "</button>" +
+        "</span></li>";
+    });
+
+    if (!html) html = '<li class="admin-hint admin-hint-item">Aucune mise en avant.</li>';
+    els.highList.innerHTML = html;
+
+    els.highAdd.disabled = list.length >= MAX_HIGHLIGHTS;
+    els.highAdd.setAttribute("aria-disabled", list.length >= MAX_HIGHLIGHTS ? "true" : "false");
+  }
+
+  function loadHighForm() {
+    var group = currentHigh();
+    els.highEmpty.hidden = !!group;
+    els.highFields.hidden = !group;
+    if (!group) return;
+
+    els.hLabel.value = group.label || "";
+    els.hFilter.value = state.highFilter;
+    renderHighCounts();
+    renderHighChoices();
+  }
+
+  function renderHighCounts() {
+    els.hLabelCount.textContent = els.hLabel.value.length + " / 60";
+  }
+
+  /**
+   * Liste de tous les outils, avec une case à cocher. Les outils retenus
+   * portent leur numéro d'ordre — c'est l'ordre du tableau, donc l'ordre
+   * d'affichage sur l'accueil — et un bouton pour les retirer.
+   */
+  function renderHighChoices() {
+    var picked = pickedIds(currentHigh());
+    var full = picked.length >= MAX_HIGHLIGHT_APPS;
+    var needle = state.highFilter.trim().toLowerCase();
+    var html = "";
+    var shown = 0;
+
+    apps().forEach(function (app) {
+      var haystack = (app.name + " " + app.id + " " + app.category).toLowerCase();
+      if (needle && haystack.indexOf(needle) < 0) return;
+      shown += 1;
+
+      var position = picked.indexOf(app.id);
+      var checked = position >= 0;
+      html +=
+        '<li class="pick-item">' +
+        '<label class="pick-check">' +
+        '<input type="checkbox" data-pick="' + esc(app.id) + '"' +
+        (checked ? " checked" : "") +
+        // Au plafond, seules les cases déjà cochées restent actives : décocher
+        // doit toujours être possible.
+        (!checked && full ? " disabled" : "") +
+        ' aria-label="' + esc(app.name) + '">' +
+        '<span class="pick-name">' + esc(app.name) + "</span>" +
+        '<span class="pick-cat">' + esc(app.category) + "</span>" +
+        "</label>" +
+        (checked
+          ? '<span class="pick-order" title="Position ' + (position + 1) + '">' +
+            (position + 1) + "</span>" +
+            '<button type="button" class="iconbtn" data-act="high-drop" data-high-app="' +
+            esc(app.id) + '" aria-label="Retirer ' + esc(app.name) + '">' +
+            svg("x", 14) + "</button>"
+          : "") +
+        "</li>";
+    });
+
+    if (!shown) {
+      html = '<li class="admin-hint admin-hint-item">Aucun outil ne correspond au filtre.</li>';
+    }
+    els.highChoices.innerHTML = html;
+
+    els.hNote.textContent = picked.length + " / " + MAX_HIGHLIGHT_APPS +
+      (picked.length > 1 ? " outils retenus" : " outil retenu") +
+      (full ? " — plafond atteint, décochez pour en choisir un autre." : ".");
+  }
+
+  function selectHighlight(index) {
+    state.highIndex = index;
+    renderHighlights();
+    loadHighForm();
+  }
+
+  function addHighlight() {
+    if (highlightGroups().length >= MAX_HIGHLIGHTS) return;
+    var list = newHighlights();
+    list.push({ label: DEFAULT_HIGHLIGHT_LABEL, appIds: [] });
+    state.highIndex = list.length - 1;
+    renderHighlights();
+    loadHighForm();
+    els.hLabel.focus();
+    els.hLabel.select();
+    scheduleValidate();
+  }
+
+  /** Le bouton d'une ligne vise sa propre ligne ; sans index, la sélection. */
+  function deleteHighlight(index) {
+    var list = highlightGroups();
+    var at = index >= 0 ? index : state.highIndex;
+    var group = list[at];
+    if (!group) return;
+    if (!window.confirm("Supprimer la mise en avant « " +
+        (group.label || DEFAULT_HIGHLIGHT_LABEL) + " » ?")) return;
+
+    list.splice(at, 1);
+    state.highIndex = list.length ? Math.min(at, list.length - 1) : null;
+    pruneHighlights();
+    renderHighlights();
+    loadHighForm();
+    scheduleValidate();
+  }
+
+  /** L'ordre des groupes est celui des cartes sur l'accueil. */
+  function moveHighlight(index, delta) {
+    var list = highlightGroups();
+    var target = index + delta;
+    if (index < 0 || index >= list.length || target < 0 || target >= list.length) return;
+    var moved = list.splice(index, 1)[0];
+    list.splice(target, 0, moved);
+    state.highIndex = target;
+    renderHighlights();
+    scheduleValidate();
+  }
+
+  function toggleHighlightApp(id, checked) {
+    var group = currentHigh();
+    if (!group) return;
+    // Repartir des identifiants connus retire au passage ceux qui ne le sont
+    // plus : le catalogue ne peut pas conserver un outil supprimé.
+    var ids = pickedIds(group);
+    var position = ids.indexOf(id);
+    if (checked) {
+      if (position < 0 && ids.length < MAX_HIGHLIGHT_APPS) ids.push(id);
+    } else if (position >= 0) {
+      ids.splice(position, 1);
+    }
+    group.appIds = ids;
+    renderHighChoices();
+    renderHighlights();
+    focusPick(id);
+    scheduleValidate();
+  }
+
+  function dropHighlightApp(id) {
+    toggleHighlightApp(id, false);
+  }
+
+  /**
+   * Le rendu reconstruit les cases à cocher : on rend le focus à celle qui
+   * vient d'être manipulée, pour que la sélection au clavier reste utilisable.
+   */
+  function focusPick(id) {
+    var boxes = els.highChoices.querySelectorAll("input[data-pick]");
+    for (var i = 0; i < boxes.length; i += 1) {
+      if (boxes[i].getAttribute("data-pick") === id) {
+        boxes[i].focus();
+        return;
+      }
+    }
+  }
+
+  /**
+   * Une mise en avant que les postes écarteraient n'a rien à faire dans le
+   * catalogue : identifiants inconnus ou en double retirés, plafonds tenus,
+   * groupe vide supprimé, libellé vide ramené à celui de l'application.
+   * Rend le nombre de corrections, pour pouvoir le dire à l'administrateur.
+   */
+  function sanitizeHighlights() {
+    var list = state.catalog.highlights;
+    if (!Array.isArray(list)) return 0;
+
+    var known = appIndex();
+    var cleaned = [];
+    var fixed = 0;
+
+    list.forEach(function (group) {
+      if (cleaned.length >= MAX_HIGHLIGHTS) {
+        fixed += 1;
+        return;
+      }
+      if (!group || typeof group !== "object") {
+        fixed += 1;
+        return;
+      }
+
+      var ids = [];
+      (Array.isArray(group.appIds) ? group.appIds : []).forEach(function (id) {
+        if (typeof id !== "string" || !known[id] || ids.indexOf(id) >= 0 ||
+            ids.length >= MAX_HIGHLIGHT_APPS) {
+          fixed += 1;
+          return;
+        }
+        ids.push(id);
+      });
+      if (!ids.length) {
+        fixed += 1;
+        return;
+      }
+
+      var label = String(group.label == null ? "" : group.label).trim().slice(0, 60) ||
+        DEFAULT_HIGHLIGHT_LABEL;
+      if (label !== group.label) fixed += 1;
+      cleaned.push({ label: label, appIds: ids });
+    });
+
+    if (!fixed) return 0;
+    if (cleaned.length) state.catalog.highlights = cleaned;
+    else delete state.catalog.highlights;
+    return fixed;
+  }
+
+  /**
+   * Appelé avant toute écriture : ce que l'outil enregistre doit être ce que
+   * les postes accepteront, sans perte silencieuse à l'arrivée.
+   */
+  function sanitizeCatalog() {
+    var fixed = sanitizeHighlights();
+    if (fixed) {
+      renderHighlights();
+      loadHighForm();
+      toast(
+        "Mises en avant corrigées",
+        fixed + " entrée(s) sans outil valide écartée(s) avant enregistrement.",
+        "warn"
+      );
+    }
+    return fixed;
   }
 
   /* ═══ Formulaire d'une catégorie ════════════════════════════════════════ */
@@ -436,6 +1109,12 @@
     renderLogo();
   }
 
+  function renderDepartment() {
+    var node = state.catalog.news || {};
+    els.dTitle.value = node.title || "";
+    els.dSubtitle.value = node.subtitle || "";
+  }
+
   function renderLogo() {
     var logo = state.catalog.logo;
     els.logoPreview.innerHTML = logo
@@ -496,11 +1175,19 @@
 
     state.appId = state.catalog.apps.length ? state.catalog.apps[0].id : null;
     state.catName = state.catalog.categories.length ? state.catalog.categories[0] : null;
+    state.newsIndex = newsItems().length ? 0 : null;
+    state.highIndex = highlightGroups().length ? 0 : null;
+    state.highFilter = "";
 
     renderApps();
     loadAppForm();
     renderCats();
     loadCatForm();
+    renderHighlights();
+    loadHighForm();
+    renderDepartment();
+    renderNews();
+    loadNewsForm();
     renderApplication();
     renderStatus();
     scheduleValidate();
@@ -518,6 +1205,7 @@
 
   function doSave() {
     if (!state.catalog) return;
+    sanitizeCatalog();
     bridge.save(state.catalog, state.filePath).then(function (result) {
       if (result.ok) {
         state.filePath = result.filePath;
@@ -530,6 +1218,8 @@
   }
 
   function doSaveAs() {
+    if (!state.catalog) return;
+    sanitizeCatalog();
     bridge.saveAs(state.catalog).then(function (result) {
       if (result.canceled) return;
       if (result.ok) {
@@ -549,6 +1239,7 @@
       setTab("application");
       return;
     }
+    sanitizeCatalog();
     bridge.publish(state.catalog).then(function (result) {
       if (!result.ok) {
         toast("Publication refusée", (result.problems || []).join(" "), "warn");
@@ -591,6 +1282,43 @@
     });
   }
 
+  /**
+   * Même motif pour une information du carrousel : la liste est redessinée à
+   * chaque frappe (son extrait en dépend), jamais le champ de saisie.
+   */
+  function bindNewsField(element, apply, after) {
+    element.addEventListener("input", function () {
+      var item = currentNews();
+      if (!item) return;
+      apply(item, element.value);
+      renderNews();
+      renderNewsCounts();
+      scheduleValidate();
+      if (after) after(item);
+    });
+  }
+
+  /**
+   * Même motif pour une mise en avant : le libellé apparaît dans la liste,
+   * qui est redessinée à chaque frappe, mais le champ lui-même ne l'est pas.
+   */
+  function bindHighField(element, apply) {
+    element.addEventListener("input", function () {
+      var group = currentHigh();
+      if (!group) return;
+      apply(group, element.value);
+      renderHighCounts();
+      renderHighlights();
+      scheduleValidate();
+    });
+  }
+
+  /** Index de la ligne de liste à laquelle appartient un bouton d'action. */
+  function rowIndex(node, attribute) {
+    var row = node.closest("[" + attribute + "]");
+    return row ? parseInt(row.getAttribute(attribute), 10) : -1;
+  }
+
   function wire() {
     document.addEventListener("click", function (event) {
       var tab = event.target.closest("[data-tab]");
@@ -610,6 +1338,12 @@
         state.catName = cat.getAttribute("data-cat");
         renderCats();
         loadCatForm();
+        return;
+      }
+
+      var high = event.target.closest("[data-high]");
+      if (high) {
+        selectHighlight(parseInt(high.getAttribute("data-high"), 10));
         return;
       }
 
@@ -639,6 +1373,22 @@
         case "logo-clear": state.catalog.logo = null; renderLogo(); scheduleValidate(); break;
         case "share-choose": chooseShare(); break;
         case "share-load": loadShare(); break;
+        case "app-image-pick": pickAppImage(); break;
+        case "app-image-clear": clearAppImage(); break;
+        case "shot-add": addScreenshot(); break;
+        case "shot-remove": removeScreenshot(parseInt(act.getAttribute("data-shot"), 10)); break;
+        case "news-add": addNews(); break;
+        case "news-select": selectNews(rowIndex(act, "data-news-index")); break;
+        case "news-up": moveNews(rowIndex(act, "data-news-index"), -1); break;
+        case "news-down": moveNews(rowIndex(act, "data-news-index"), 1); break;
+        case "news-delete": deleteNews(rowIndex(act, "data-news-index")); break;
+        case "news-image-pick": pickNewsImage(); break;
+        case "news-image-clear": clearNewsImage(); break;
+        case "high-add": addHighlight(); break;
+        case "high-up": moveHighlight(rowIndex(act, "data-high-index"), -1); break;
+        case "high-down": moveHighlight(rowIndex(act, "data-high-index"), 1); break;
+        case "high-delete": deleteHighlight(rowIndex(act, "data-high-index")); break;
+        case "high-drop": dropHighlightApp(act.getAttribute("data-high-app")); break;
         default: break;
       }
     });
@@ -722,6 +1472,64 @@
       scheduleValidate();
     });
 
+    // En-tête du carrousel : sans information, l'objet n'est pas conservé par
+    // la validation, donc on l'oublie dès qu'il redevient vide.
+    els.dTitle.addEventListener("input", function () {
+      news().title = els.dTitle.value;
+      pruneNews();
+      scheduleValidate();
+    });
+
+    els.dSubtitle.addEventListener("input", function () {
+      news().subtitle = els.dSubtitle.value;
+      pruneNews();
+      scheduleValidate();
+    });
+
+    bindNewsField(els.nTitle, function (item, value) { item.title = value; });
+    bindNewsField(els.nText, function (item, value) { item.text = value; });
+    bindNewsField(els.dDate, function (item, value) {
+      // Une information sans date reste valide : le rendu n'affiche rien.
+      var clean = value.trim();
+      if (clean) item.date = clean;
+      else delete item.date;
+    });
+
+    bindNewsField(els.nUrl, function (item, value) {
+      var clean = value.trim();
+      if (!clean) {
+        delete item.url;
+        delete item.linkLabel;
+        return;
+      }
+      // Une adresse qui n'est pas http(s) serait écartée en silence par la
+      // validation du catalogue : on la refuse à la saisie et on le dit.
+      if (!isHttpUrl(clean)) return;
+      item.url = clean;
+    }, function () { renderUrlState(); });
+
+    bindNewsField(els.nLinkLabel, function (item, value) {
+      var clean = value.trim();
+      if (!item.url) return;
+      if (clean) item.linkLabel = clean;
+      else delete item.linkLabel;
+    });
+
+    bindHighField(els.hLabel, function (group, value) { group.label = value; });
+
+    // Le filtre ne redessine que la liste : le champ de recherche n'est jamais
+    // reconstruit pendant la frappe.
+    els.hFilter.addEventListener("input", function () {
+      state.highFilter = els.hFilter.value;
+      renderHighChoices();
+    });
+
+    els.highChoices.addEventListener("change", function (event) {
+      var box = event.target.closest("input[data-pick]");
+      if (!box) return;
+      toggleHighlightApp(box.getAttribute("data-pick"), box.checked);
+    });
+
     document.addEventListener("keydown", function (event) {
       if ((event.ctrlKey || event.metaKey) && event.key === "s") {
         event.preventDefault();
@@ -789,6 +1597,37 @@
       fBadge: $("f-badge"),
       fMeta: $("f-meta"),
       fKeywords: $("f-keywords"),
+      appImagePreview: $("app-image-preview"),
+      appShots: $("app-shots"),
+      appShotAdd: $("app-shot-add"),
+      highList: $("high-list"),
+      highAdd: $("high-add"),
+      highEmpty: $("high-empty"),
+      highFields: $("high-fields"),
+      hLabel: $("h-label"),
+      hLabelCount: $("h-label-count"),
+      hFilter: $("h-filter"),
+      highChoices: $("h-choices"),
+      hNote: $("h-note"),
+      dTitle: $("d-title"),
+      dSubtitle: $("d-subtitle"),
+      newsList: $("news-list"),
+      newsCount: $("news-count"),
+      newsAdd: $("news-add"),
+      newsForm: $("news-form"),
+      newsHint: $("news-hint"),
+      nTitle: $("n-title"),
+      nTitleCount: $("n-title-count"),
+      nText: $("n-text"),
+      nTextCount: $("n-text-count"),
+      dDate: $("d-date"),
+      dDateCount: $("d-date-count"),
+      nUrl: $("n-url"),
+      nUrlNote: $("n-url-note"),
+      nLinkLabel: $("n-link-label"),
+      nLinkCount: $("n-link-count"),
+      nLinkNote: $("n-link-note"),
+      nImagePreview: $("n-image-preview"),
       catList: $("cat-list"),
       catEmpty: $("cat-empty"),
       catFields: $("cat-fields"),
@@ -835,6 +1674,23 @@
       // Exposé pour l'auto-vérification : permet de piloter l'interface sans
       // dépendre d'une souris.
       window.__adminState = state;
+      // Réaffiche tout depuis l'état en mémoire. L'auto-vérification s'en sert
+      // pour éprouver les plafonds et les aperçus après avoir écrit directement
+      // dans le catalogue, sans ouvrir les sélecteurs de fichier natifs — qu'un
+      // automate ne peut pas piloter.
+      window.__adminRefresh = function () {
+        renderApps();
+        loadAppForm();
+        renderCats();
+        loadCatForm();
+        renderHighlights();
+        loadHighForm();
+        renderDepartment();
+        renderNews();
+        loadNewsForm();
+        renderApplication();
+        renderStatus();
+      };
     });
   }
 

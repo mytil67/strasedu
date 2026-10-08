@@ -1,5 +1,5 @@
 {
-  "version": "2.1.1",
+  "version": "2.2.0",
   "schema": 2,
   "lastUpdated": "2026-10-08",
   "categoryMeta": {
@@ -59,7 +59,12 @@
         "oral"
       ],
       "url": "https://vocaroo.com",
-      "type": "web"
+      "type": "web",
+      "image": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA4MDAgMzUwIiB3aWR0aD0iODAwIiBoZWlnaHQ9IjM1MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjYTk5M2ZmIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNjY0YmQxIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjgwMCIgaGVpZ2h0PSIzNTAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSI2OTAiIGN5PSI3MCIgcj0iMTMwIiBmaWxsPSIjZmZmZmZmIiBvcGFjaXR5PSIwLjEzIi8+PGNpcmNsZSBjeD0iOTAiIGN5PSIzMzAiIHI9IjE1MCIgZmlsbD0iI2ZmZmZmZiIgb3BhY2l0eT0iMC4wOCIvPjxyZWN0IHg9IjU0IiB5PSIxMTUiIHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiByeD0iMzAiIGZpbGw9IiNmZmZmZmYiIG9wYWNpdHk9IjAuOTUiLz48dGV4dCB4PSIxMTQiIHk9IjE5NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IlNlZ29lIFVJLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjUyIiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjNTEzY2E2Ij5WbzwvdGV4dD48L3N2Zz4=",
+      "screenshots": [
+        "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA4ODAgNTIwIiB3aWR0aD0iODgwIiBoZWlnaHQ9IjUyMCI+PHJlY3Qgd2lkdGg9Ijg4MCIgaGVpZ2h0PSI1MjAiIHJ4PSIxOCIgZmlsbD0iI2ZmZmZmZiIvPjxyZWN0IHdpZHRoPSI4ODAiIGhlaWdodD0iNzAiIHJ4PSIxOCIgZmlsbD0iI2RhZDFmZiIvPjxyZWN0IHk9IjUyIiB3aWR0aD0iODgwIiBoZWlnaHQ9IjE4IiBmaWxsPSIjZGFkMWZmIi8+PGNpcmNsZSBjeD0iNDAiIGN5PSIzNSIgcj0iOCIgZmlsbD0iIzdDNUNGRiIgb3BhY2l0eT0iMC41NSIvPjxjaXJjbGUgY3g9IjY2IiBjeT0iMzUiIHI9IjgiIGZpbGw9IiM3QzVDRkYiIG9wYWNpdHk9IjAuMzUiLz48Y2lyY2xlIGN4PSI5MiIgY3k9IjM1IiByPSI4IiBmaWxsPSIjN0M1Q0ZGIiBvcGFjaXR5PSIwLjIyIi8+PHJlY3QgeD0iNTYiIHk9IjE1MCIgd2lkdGg9IjQyMCIgaGVpZ2h0PSIyNiIgcng9IjgiIGZpbGw9IiM3QzVDRkYiIG9wYWNpdHk9IjAuODUiLz48cmVjdCB4PSI1NiIgeT0iMTk2IiB3aWR0aD0iNTYwIiBoZWlnaHQ9IjE2IiByeD0iOCIgZmlsbD0iIzdDNUNGRiIgb3BhY2l0eT0iMC4zNSIvPjxyZWN0IHg9IjU2IiB5PSIyMjYiIHdpZHRoPSI0ODAiIGhlaWdodD0iMTYiIHJ4PSI4IiBmaWxsPSIjN0M1Q0ZGIiBvcGFjaXR5PSIwLjI4Ii8+PHJlY3QgeD0iNTYiIHk9IjI5MCIgd2lkdGg9IjE1MCIgaGVpZ2h0PSI4NiIgcng9IjE0IiBmaWxsPSIjN0M1Q0ZGIiBvcGFjaXR5PSIwLjI0Ii8+PHJlY3QgeD0iMjIyIiB5PSIyOTAiIHdpZHRoPSIxNTAiIGhlaWdodD0iODYiIHJ4PSIxNCIgZmlsbD0iIzdDNUNGRiIgb3BhY2l0eT0iMC4xOCIvPjxyZWN0IHg9IjM4OCIgeT0iMjkwIiB3aWR0aD0iMTUwIiBoZWlnaHQ9Ijg2IiByeD0iMTQiIGZpbGw9IiM3QzVDRkYiIG9wYWNpdHk9IjAuMTIiLz48cmVjdCB4PSI2NDAiIHk9IjE1MCIgd2lkdGg9IjE4NCIgaGVpZ2h0PSIyMjYiIHJ4PSIxNiIgZmlsbD0iIzdDNUNGRiIgb3BhY2l0eT0iMC4xNCIvPjwvc3ZnPg==",
+        "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA4ODAgNTIwIiB3aWR0aD0iODgwIiBoZWlnaHQ9IjUyMCI+PHJlY3Qgd2lkdGg9Ijg4MCIgaGVpZ2h0PSI1MjAiIHJ4PSIxOCIgZmlsbD0iI2ZmZmZmZiIvPjxyZWN0IHdpZHRoPSI4ODAiIGhlaWdodD0iNzAiIHJ4PSIxOCIgZmlsbD0iI2RhZDFmZiIvPjxyZWN0IHk9IjUyIiB3aWR0aD0iODgwIiBoZWlnaHQ9IjE4IiBmaWxsPSIjZGFkMWZmIi8+PGNpcmNsZSBjeD0iNDAiIGN5PSIzNSIgcj0iOCIgZmlsbD0iIzdDNUNGRiIgb3BhY2l0eT0iMC41NSIvPjxjaXJjbGUgY3g9IjY2IiBjeT0iMzUiIHI9IjgiIGZpbGw9IiM3QzVDRkYiIG9wYWNpdHk9IjAuMzUiLz48Y2lyY2xlIGN4PSI5MiIgY3k9IjM1IiByPSI4IiBmaWxsPSIjN0M1Q0ZGIiBvcGFjaXR5PSIwLjIyIi8+PHJlY3QgeD0iNjQwIiB5PSIxNTAiIHdpZHRoPSIxODQiIGhlaWdodD0iMjI2IiByeD0iMTYiIGZpbGw9IiM3QzVDRkYiIG9wYWNpdHk9IjAuMTQiLz48cmVjdCB4PSIzODgiIHk9IjI5MCIgd2lkdGg9IjE1MCIgaGVpZ2h0PSI4NiIgcng9IjE0IiBmaWxsPSIjN0M1Q0ZGIiBvcGFjaXR5PSIwLjEyIi8+PHJlY3QgeD0iMjIyIiB5PSIyOTAiIHdpZHRoPSIxNTAiIGhlaWdodD0iODYiIHJ4PSIxNCIgZmlsbD0iIzdDNUNGRiIgb3BhY2l0eT0iMC4xOCIvPjxyZWN0IHg9IjU2IiB5PSIyOTAiIHdpZHRoPSIxNTAiIGhlaWdodD0iODYiIHJ4PSIxNCIgZmlsbD0iIzdDNUNGRiIgb3BhY2l0eT0iMC4yNCIvPjxyZWN0IHg9IjU2IiB5PSIyMjYiIHdpZHRoPSI0ODAiIGhlaWdodD0iMTYiIHJ4PSI4IiBmaWxsPSIjN0M1Q0ZGIiBvcGFjaXR5PSIwLjI4Ii8+PHJlY3QgeD0iNTYiIHk9IjE5NiIgd2lkdGg9IjU2MCIgaGVpZ2h0PSIxNiIgcng9IjgiIGZpbGw9IiM3QzVDRkYiIG9wYWNpdHk9IjAuMzUiLz48cmVjdCB4PSI1NiIgeT0iMTUwIiB3aWR0aD0iNDIwIiBoZWlnaHQ9IjI2IiByeD0iOCIgZmlsbD0iIzdDNUNGRiIgb3BhY2l0eT0iMC44NSIvPjwvc3ZnPg=="
+      ]
     },
     {
       "id": "audacity",
@@ -94,7 +99,8 @@
         "radio"
       ],
       "url": "https://podcastle.ai",
-      "type": "web"
+      "type": "web",
+      "image": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA4MDAgMzUwIiB3aWR0aD0iODAwIiBoZWlnaHQ9IjM1MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjYTk5M2ZmIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNjY0YmQxIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjgwMCIgaGVpZ2h0PSIzNTAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSI2OTAiIGN5PSI3MCIgcj0iMTMwIiBmaWxsPSIjZmZmZmZmIiBvcGFjaXR5PSIwLjEzIi8+PGNpcmNsZSBjeD0iOTAiIGN5PSIzMzAiIHI9IjE1MCIgZmlsbD0iI2ZmZmZmZiIgb3BhY2l0eT0iMC4wOCIvPjxyZWN0IHg9IjU0IiB5PSIxMTUiIHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiByeD0iMzAiIGZpbGw9IiNmZmZmZmYiIG9wYWNpdHk9IjAuOTUiLz48dGV4dCB4PSIxMTQiIHk9IjE5NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IlNlZ29lIFVJLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjUyIiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjNTEzY2E2Ij5QZDwvdGV4dD48L3N2Zz4="
     },
     {
       "id": "ausha",
@@ -129,7 +135,8 @@
         "office"
       ],
       "url": "https://app.clipchamp.com",
-      "type": "web"
+      "type": "web",
+      "image": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA4MDAgMzUwIiB3aWR0aD0iODAwIiBoZWlnaHQ9IjM1MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZWU4NjhhIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjYmMzYjNmIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjgwMCIgaGVpZ2h0PSIzNTAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSI2OTAiIGN5PSI3MCIgcj0iMTMwIiBmaWxsPSIjZmZmZmZmIiBvcGFjaXR5PSIwLjEzIi8+PGNpcmNsZSBjeD0iOTAiIGN5PSIzMzAiIHI9IjE1MCIgZmlsbD0iI2ZmZmZmZiIgb3BhY2l0eT0iMC4wOCIvPjxyZWN0IHg9IjU0IiB5PSIxMTUiIHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiByeD0iMzAiIGZpbGw9IiNmZmZmZmYiIG9wYWNpdHk9IjAuOTUiLz48dGV4dCB4PSIxMTQiIHk9IjE5NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IlNlZ29lIFVJLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjUyIiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjOTUyZjMyIj5DbDwvdGV4dD48L3N2Zz4="
     },
     {
       "id": "peertube",
@@ -180,7 +187,8 @@
         "classe"
       ],
       "url": "https://edpuzzle.com",
-      "type": "web"
+      "type": "web",
+      "image": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA4MDAgMzUwIiB3aWR0aD0iODAwIiBoZWlnaHQ9IjM1MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjZWU4NjhhIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjYmMzYjNmIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjgwMCIgaGVpZ2h0PSIzNTAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSI2OTAiIGN5PSI3MCIgcj0iMTMwIiBmaWxsPSIjZmZmZmZmIiBvcGFjaXR5PSIwLjEzIi8+PGNpcmNsZSBjeD0iOTAiIGN5PSIzMzAiIHI9IjE1MCIgZmlsbD0iI2ZmZmZmZiIgb3BhY2l0eT0iMC4wOCIvPjxyZWN0IHg9IjU0IiB5PSIxMTUiIHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiByeD0iMzAiIGZpbGw9IiNmZmZmZmYiIG9wYWNpdHk9IjAuOTUiLz48dGV4dCB4PSIxMTQiIHk9IjE5NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IlNlZ29lIFVJLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjUyIiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjOTUyZjMyIj5FZDwvdGV4dD48L3N2Zz4="
     },
     {
       "id": "chatgpt",
@@ -231,7 +239,8 @@
         "mistral"
       ],
       "url": "https://chat.mistral.ai",
-      "type": "web"
+      "type": "web",
+      "image": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA4MDAgMzUwIiB3aWR0aD0iODAwIiBoZWlnaHQ9IjM1MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjNjBjNGM0Ii8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMGI4Nzg3Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjgwMCIgaGVpZ2h0PSIzNTAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSI2OTAiIGN5PSI3MCIgcj0iMTMwIiBmaWxsPSIjZmZmZmZmIiBvcGFjaXR5PSIwLjEzIi8+PGNpcmNsZSBjeD0iOTAiIGN5PSIzMzAiIHI9IjE1MCIgZmlsbD0iI2ZmZmZmZiIgb3BhY2l0eT0iMC4wOCIvPjxyZWN0IHg9IjU0IiB5PSIxMTUiIHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiByeD0iMzAiIGZpbGw9IiNmZmZmZmYiIG9wYWNpdHk9IjAuOTUiLz48dGV4dCB4PSIxMTQiIHk9IjE5NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IlNlZ29lIFVJLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjUyIiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjMDk2YjZiIj5MYzwvdGV4dD48L3N2Zz4="
     },
     {
       "id": "napkin",
@@ -248,7 +257,8 @@
         "croquis"
       ],
       "url": "https://www.napkin.ai",
-      "type": "web"
+      "type": "web",
+      "image": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA4MDAgMzUwIiB3aWR0aD0iODAwIiBoZWlnaHQ9IjM1MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjNjBjNGM0Ii8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMGI4Nzg3Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjgwMCIgaGVpZ2h0PSIzNTAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSI2OTAiIGN5PSI3MCIgcj0iMTMwIiBmaWxsPSIjZmZmZmZmIiBvcGFjaXR5PSIwLjEzIi8+PGNpcmNsZSBjeD0iOTAiIGN5PSIzMzAiIHI9IjE1MCIgZmlsbD0iI2ZmZmZmZiIgb3BhY2l0eT0iMC4wOCIvPjxyZWN0IHg9IjU0IiB5PSIxMTUiIHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiByeD0iMzAiIGZpbGw9IiNmZmZmZmYiIG9wYWNpdHk9IjAuOTUiLz48dGV4dCB4PSIxMTQiIHk9IjE5NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IlNlZ29lIFVJLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjUyIiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjMDk2YjZiIj5OcDwvdGV4dD48L3N2Zz4="
     },
     {
       "id": "nextcloud",
@@ -334,7 +344,12 @@
         "convertir"
       ],
       "url": "https://stirlingpdf.io",
-      "type": "web"
+      "type": "web",
+      "image": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA4MDAgMzUwIiB3aWR0aD0iODAwIiBoZWlnaHQ9IjM1MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjN2VhZGY5Ii8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMzA2YmNhIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjgwMCIgaGVpZ2h0PSIzNTAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSI2OTAiIGN5PSI3MCIgcj0iMTMwIiBmaWxsPSIjZmZmZmZmIiBvcGFjaXR5PSIwLjEzIi8+PGNpcmNsZSBjeD0iOTAiIGN5PSIzMzAiIHI9IjE1MCIgZmlsbD0iI2ZmZmZmZiIgb3BhY2l0eT0iMC4wOCIvPjxyZWN0IHg9IjU0IiB5PSIxMTUiIHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiByeD0iMzAiIGZpbGw9IiNmZmZmZmYiIG9wYWNpdHk9IjAuOTUiLz48dGV4dCB4PSIxMTQiIHk9IjE5NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IlNlZ29lIFVJLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjUyIiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjMjY1NWEwIj5TdDwvdGV4dD48L3N2Zz4=",
+      "screenshots": [
+        "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA4ODAgNTIwIiB3aWR0aD0iODgwIiBoZWlnaHQ9IjUyMCI+PHJlY3Qgd2lkdGg9Ijg4MCIgaGVpZ2h0PSI1MjAiIHJ4PSIxOCIgZmlsbD0iI2ZmZmZmZiIvPjxyZWN0IHdpZHRoPSI4ODAiIGhlaWdodD0iNzAiIHJ4PSIxOCIgZmlsbD0iI2M4ZGNmYyIvPjxyZWN0IHk9IjUyIiB3aWR0aD0iODgwIiBoZWlnaHQ9IjE4IiBmaWxsPSIjYzhkY2ZjIi8+PGNpcmNsZSBjeD0iNDAiIGN5PSIzNSIgcj0iOCIgZmlsbD0iIzNCODJGNiIgb3BhY2l0eT0iMC41NSIvPjxjaXJjbGUgY3g9IjY2IiBjeT0iMzUiIHI9IjgiIGZpbGw9IiMzQjgyRjYiIG9wYWNpdHk9IjAuMzUiLz48Y2lyY2xlIGN4PSI5MiIgY3k9IjM1IiByPSI4IiBmaWxsPSIjM0I4MkY2IiBvcGFjaXR5PSIwLjIyIi8+PHJlY3QgeD0iNTYiIHk9IjE1MCIgd2lkdGg9IjQyMCIgaGVpZ2h0PSIyNiIgcng9IjgiIGZpbGw9IiMzQjgyRjYiIG9wYWNpdHk9IjAuODUiLz48cmVjdCB4PSI1NiIgeT0iMTk2IiB3aWR0aD0iNTYwIiBoZWlnaHQ9IjE2IiByeD0iOCIgZmlsbD0iIzNCODJGNiIgb3BhY2l0eT0iMC4zNSIvPjxyZWN0IHg9IjU2IiB5PSIyMjYiIHdpZHRoPSI0ODAiIGhlaWdodD0iMTYiIHJ4PSI4IiBmaWxsPSIjM0I4MkY2IiBvcGFjaXR5PSIwLjI4Ii8+PHJlY3QgeD0iNTYiIHk9IjI5MCIgd2lkdGg9IjE1MCIgaGVpZ2h0PSI4NiIgcng9IjE0IiBmaWxsPSIjM0I4MkY2IiBvcGFjaXR5PSIwLjI0Ii8+PHJlY3QgeD0iMjIyIiB5PSIyOTAiIHdpZHRoPSIxNTAiIGhlaWdodD0iODYiIHJ4PSIxNCIgZmlsbD0iIzNCODJGNiIgb3BhY2l0eT0iMC4xOCIvPjxyZWN0IHg9IjM4OCIgeT0iMjkwIiB3aWR0aD0iMTUwIiBoZWlnaHQ9Ijg2IiByeD0iMTQiIGZpbGw9IiMzQjgyRjYiIG9wYWNpdHk9IjAuMTIiLz48cmVjdCB4PSI2NDAiIHk9IjE1MCIgd2lkdGg9IjE4NCIgaGVpZ2h0PSIyMjYiIHJ4PSIxNiIgZmlsbD0iIzNCODJGNiIgb3BhY2l0eT0iMC4xNCIvPjwvc3ZnPg==",
+        "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA4ODAgNTIwIiB3aWR0aD0iODgwIiBoZWlnaHQ9IjUyMCI+PHJlY3Qgd2lkdGg9Ijg4MCIgaGVpZ2h0PSI1MjAiIHJ4PSIxOCIgZmlsbD0iI2ZmZmZmZiIvPjxyZWN0IHdpZHRoPSI4ODAiIGhlaWdodD0iNzAiIHJ4PSIxOCIgZmlsbD0iI2M4ZGNmYyIvPjxyZWN0IHk9IjUyIiB3aWR0aD0iODgwIiBoZWlnaHQ9IjE4IiBmaWxsPSIjYzhkY2ZjIi8+PGNpcmNsZSBjeD0iNDAiIGN5PSIzNSIgcj0iOCIgZmlsbD0iIzNCODJGNiIgb3BhY2l0eT0iMC41NSIvPjxjaXJjbGUgY3g9IjY2IiBjeT0iMzUiIHI9IjgiIGZpbGw9IiMzQjgyRjYiIG9wYWNpdHk9IjAuMzUiLz48Y2lyY2xlIGN4PSI5MiIgY3k9IjM1IiByPSI4IiBmaWxsPSIjM0I4MkY2IiBvcGFjaXR5PSIwLjIyIi8+PHJlY3QgeD0iNjQwIiB5PSIxNTAiIHdpZHRoPSIxODQiIGhlaWdodD0iMjI2IiByeD0iMTYiIGZpbGw9IiMzQjgyRjYiIG9wYWNpdHk9IjAuMTQiLz48cmVjdCB4PSIzODgiIHk9IjI5MCIgd2lkdGg9IjE1MCIgaGVpZ2h0PSI4NiIgcng9IjE0IiBmaWxsPSIjM0I4MkY2IiBvcGFjaXR5PSIwLjEyIi8+PHJlY3QgeD0iMjIyIiB5PSIyOTAiIHdpZHRoPSIxNTAiIGhlaWdodD0iODYiIHJ4PSIxNCIgZmlsbD0iIzNCODJGNiIgb3BhY2l0eT0iMC4xOCIvPjxyZWN0IHg9IjU2IiB5PSIyOTAiIHdpZHRoPSIxNTAiIGhlaWdodD0iODYiIHJ4PSIxNCIgZmlsbD0iIzNCODJGNiIgb3BhY2l0eT0iMC4yNCIvPjxyZWN0IHg9IjU2IiB5PSIyMjYiIHdpZHRoPSI0ODAiIGhlaWdodD0iMTYiIHJ4PSI4IiBmaWxsPSIjM0I4MkY2IiBvcGFjaXR5PSIwLjI4Ii8+PHJlY3QgeD0iNTYiIHk9IjE5NiIgd2lkdGg9IjU2MCIgaGVpZ2h0PSIxNiIgcng9IjgiIGZpbGw9IiMzQjgyRjYiIG9wYWNpdHk9IjAuMzUiLz48cmVjdCB4PSI1NiIgeT0iMTUwIiB3aWR0aD0iNDIwIiBoZWlnaHQ9IjI2IiByeD0iOCIgZmlsbD0iIzNCODJGNiIgb3BhY2l0eT0iMC44NSIvPjwvc3ZnPg=="
+      ]
     },
     {
       "id": "ilovepdf",
@@ -447,7 +462,59 @@
         "eleves"
       ],
       "url": "https://junior.pix.fr/",
-      "type": "web"
+      "type": "web",
+      "image": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA4MDAgMzUwIiB3aWR0aD0iODAwIiBoZWlnaHQ9IjM1MCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjOTljMjVmIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNTM4NjBiIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjgwMCIgaGVpZ2h0PSIzNTAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSI2OTAiIGN5PSI3MCIgcj0iMTMwIiBmaWxsPSIjZmZmZmZmIiBvcGFjaXR5PSIwLjEzIi8+PGNpcmNsZSBjeD0iOTAiIGN5PSIzMzAiIHI9IjE1MCIgZmlsbD0iI2ZmZmZmZiIgb3BhY2l0eT0iMC4wOCIvPjxyZWN0IHg9IjU0IiB5PSIxMTUiIHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiByeD0iMzAiIGZpbGw9IiNmZmZmZmYiIG9wYWNpdHk9IjAuOTUiLz48dGV4dCB4PSIxMTQiIHk9IjE5NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IlNlZ29lIFVJLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjUyIiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjNDI2YTA4Ij5QajwvdGV4dD48L3N2Zz4="
+    }
+  ],
+  "news": {
+    "title": "Informations du département informatique",
+    "subtitle": "Les dernières nouvelles du service",
+    "items": [
+      {
+        "id": "info-salle-b12",
+        "title": "La salle informatique B12 fait peau neuve",
+        "text": "Seize postes remplacés, écran interactif et casques audio neufs. La salle est accessible aux enseignants sur réservation auprès de la vie scolaire.",
+        "image": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAwIDUyMCIgd2lkdGg9IjEwMDAiIGhlaWdodD0iNTIwIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB5MT0iMCIgeDI9IjEiIHkyPSIxIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiMwZjlkNjMiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwYjZmNDciLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwMCIgaGVpZ2h0PSI1MjAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSI4MjAiIGN5PSIxMjAiIHI9IjE5MCIgZmlsbD0iI2ZmZmZmZiIgb3BhY2l0eT0iMC4xMiIvPjxjaXJjbGUgY3g9IjE0MCIgY3k9IjQzMCIgcj0iMjMwIiBmaWxsPSIjZmZmZmZmIiBvcGFjaXR5PSIwLjA5Ii8+PGNpcmNsZSBjeD0iOTMwIiBjeT0iNDcwIiByPSIxMjAiIGZpbGw9IiMwMDAwMDAiIG9wYWNpdHk9IjAuMDciLz48L3N2Zz4=",
+        "url": "https://www.ac-strasbourg.fr/",
+        "linkLabel": "Réserver la salle",
+        "date": "8 octobre 2026"
+      },
+      {
+        "id": "info-maintenance",
+        "title": "Maintenance du serveur pédagogique",
+        "text": "Le serveur de fichiers sera indisponible mercredi de 12 h à 14 h. Enregistrez vos travaux sur votre espace personnel avant midi.",
+        "image": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAwIDUyMCIgd2lkdGg9IjEwMDAiIGhlaWdodD0iNTIwIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB5MT0iMCIgeDI9IjEiIHkyPSIxIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiNkOTc3MDYiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiM5MjQwMGUiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwMCIgaGVpZ2h0PSI1MjAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSI4MjAiIGN5PSIxMjAiIHI9IjE5MCIgZmlsbD0iI2ZmZmZmZiIgb3BhY2l0eT0iMC4xMiIvPjxjaXJjbGUgY3g9IjE0MCIgY3k9IjQzMCIgcj0iMjMwIiBmaWxsPSIjZmZmZmZmIiBvcGFjaXR5PSIwLjA5Ii8+PGNpcmNsZSBjeD0iOTMwIiBjeT0iNDcwIiByPSIxMjAiIGZpbGw9IiMwMDAwMDAiIG9wYWNpdHk9IjAuMDciLz48L3N2Zz4=",
+        "date": "6 octobre 2026"
+      },
+      {
+        "id": "info-nouveaux-outils",
+        "title": "Cinq nouveaux outils validés en IA",
+        "text": "Après la commission du mois, cinq assistants sont désormais autorisés en classe. Ils sont regroupés dans la catégorie IA du catalogue.",
+        "image": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAwIDUyMCIgd2lkdGg9IjEwMDAiIGhlaWdodD0iNTIwIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB5MT0iMCIgeDI9IjEiIHkyPSIxIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiM0ZjQ2ZTUiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMzMTJlODEiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwMCIgaGVpZ2h0PSI1MjAiIGZpbGw9InVybCgjZykiLz48Y2lyY2xlIGN4PSI4MjAiIGN5PSIxMjAiIHI9IjE5MCIgZmlsbD0iI2ZmZmZmZiIgb3BhY2l0eT0iMC4xMiIvPjxjaXJjbGUgY3g9IjE0MCIgY3k9IjQzMCIgcj0iMjMwIiBmaWxsPSIjZmZmZmZmIiBvcGFjaXR5PSIwLjA5Ii8+PGNpcmNsZSBjeD0iOTMwIiBjeT0iNDcwIiByPSIxMjAiIGZpbGw9IiMwMDAwMDAiIG9wYWNpdHk9IjAuMDciLz48L3N2Zz4=",
+        "url": "https://www.education.gouv.fr/",
+        "linkLabel": "Lire la charte d’usage",
+        "date": "2 octobre 2026"
+      }
+    ]
+  },
+  "highlights": [
+    {
+      "label": "Le moment",
+      "appIds": [
+        "vocaroo",
+        "clipchamp",
+        "lechat",
+        "stirling"
+      ]
+    },
+    {
+      "label": "Le mois",
+      "appIds": [
+        "podcastle",
+        "edpuzzle",
+        "napkin",
+        "pix-junior"
+      ]
     }
   ]
 }

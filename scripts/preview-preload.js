@@ -53,6 +53,7 @@ const snapshot = {
 contextBridge.exposeInMainWorld("strasedu", {
   getSnapshot: async () => JSON.parse(JSON.stringify(snapshot)),
   openApp: async () => ({ ok: true }),
+  openNews: async () => ({ ok: true }),
   setFavorites: async (ids) => ids,
   setPrefs: async (prefs) => Object.assign(snapshot.prefs, prefs),
   setTheme: async (value) => {

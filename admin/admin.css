@@ -242,6 +242,15 @@ body.admin-body-root {
   font-weight: 700;
   background: var(--accent-soft);
   color: var(--accent-ink);
+  overflow: hidden;
+}
+
+/* Une vignette remplace la pastille à deux lettres : elle occupe la même
+   place, pour que la liste garde son alignement quels que soient les outils. */
+.admin-item-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .admin-item-body {
@@ -378,6 +387,12 @@ body.admin-body-root {
   flex: 0 0 130px;
 }
 
+/* La date est un texte libre court : assez large pour « 8 octobre 2026 »,
+   sans prendre la place du titre qu'elle accompagne. */
+.field-date {
+  flex: 0 0 200px;
+}
+
 .admin-form-actions {
   display: flex;
   gap: var(--sp-2);
@@ -437,6 +452,408 @@ body.admin-body-root {
 .icon-choice-none {
   font-size: var(--fs-xs);
   font-weight: 600;
+}
+
+/* ── Visuels d'un outil (vignette et captures) ───────────────────────────── */
+
+.visuals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-3);
+  background: var(--surface-inset);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-lg);
+}
+
+.visual-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.visual-label {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.visual-label em {
+  font-style: normal;
+  font-weight: 400;
+  color: var(--text-3);
+}
+
+.visual-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+/* Aperçu de l'image choisie : mêmes proportions que son usage réel, pour que
+   l'administrateur voie ce que l'application affichera. */
+.visual-preview {
+  width: 96px;
+  height: 64px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  border: 1px dashed var(--stroke-strong);
+  background: var(--surface-3);
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+}
+
+.visual-preview-wide {
+  width: 160px;
+  height: 56px;
+}
+
+.visual-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.visual-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.shot-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.shot-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  align-items: center;
+}
+
+.shot-thumb {
+  width: 112px;
+  height: 70px;
+  display: block;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  border: 1px solid var(--stroke-strong);
+  background: var(--surface-3);
+}
+
+.shot-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ── Mise en avant : groupes et sélecteur d'outils ───────────────────────── */
+
+/* Les listes d'outils et de catégories ne portent qu'un bouton par ligne ;
+   celle-ci en porte trois de plus (monter, descendre, supprimer) : la ligne
+   devient une rangée, et le bouton de sélection garde la mise en forme
+   commune. */
+.admin-item-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: var(--sp-1);
+}
+
+.admin-item-row .admin-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-item-tools {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex: none;
+}
+
+.admin-item-row .iconbtn {
+  width: 26px;
+  height: 26px;
+}
+
+/* Groupe sans outil : il ne serait pas publié, la liste le dit sans le
+   confondre avec le marqueur de validation des outils. */
+.admin-item-warn {
+  flex: none;
+  font-size: var(--fs-xs);
+  color: #8a5200;
+  background: rgba(245, 158, 11, 0.18);
+  border-radius: var(--r-full);
+  padding: 1px 6px;
+}
+
+.pick-search {
+  flex: none;
+  width: 100%;
+  margin-bottom: var(--sp-2);
+}
+
+.pick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  list-style: none;
+  margin: 0;
+  padding: var(--sp-2);
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--surface-inset);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-lg);
+}
+
+.pick-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 32px;
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-sm);
+}
+
+.pick-item:hover {
+  background: var(--hover);
+}
+
+.pick-check {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.pick-check input[type="checkbox"] {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.pick-check input:disabled {
+  cursor: default;
+}
+
+.pick-name {
+  font-size: var(--fs-base);
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pick-cat {
+  flex: none;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+
+/* Numéro d'ordre : c'est lui qui dit à l'administrateur dans quel ordre les
+   cartes apparaîtront sur l'accueil. */
+.pick-order {
+  flex: none;
+  min-width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-full);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+
+.pick-item .iconbtn {
+  width: 26px;
+  height: 26px;
+  flex: none;
+}
+
+/* ── Département : liste éditable des informations ───────────────────────── */
+
+.news-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  background: var(--surface-inset);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-lg);
+  max-width: 720px;
+}
+
+.news-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.news-head .admin-note {
+  flex: 1;
+  margin: 0;
+}
+
+.news-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.news-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 2px;
+  border-radius: var(--r-md);
+  background: var(--surface-3);
+  border: 1px solid var(--stroke);
+}
+
+.news-main {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex: 1;
+  min-width: 0;
+  padding: var(--sp-2);
+  border-radius: var(--r-sm);
+  text-align: left;
+  color: var(--text-1);
+}
+
+.news-main:hover {
+  background: var(--hover);
+}
+
+.news-main[aria-selected="true"] {
+  background: var(--selected);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.news-thumb {
+  width: 44px;
+  height: 32px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: var(--r-sm);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.news-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.news-item-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.news-item-title {
+  font-size: var(--fs-base);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.news-item-text {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.news-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+  padding-right: 2px;
+}
+
+.news-tools .iconbtn {
+  width: 28px;
+  height: 28px;
+}
+
+/* Le jeu d'icônes n'a pas de flèche verticale, et il est partagé avec
+   l'application : on réutilise le chevron couché plutôt que d'y ajouter une
+   icône qui ne servirait qu'ici. */
+.rot-up {
+  transform: rotate(-90deg);
+}
+
+.rot-down {
+  transform: rotate(90deg);
+}
+
+.iconbtn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.news-form {
+  max-width: 720px;
+}
+
+/* Les compteurs et les avertissements sont des <span> posés à côté du champ :
+   ils doivent l'emporter sur la mise en forme générique de « .field > span ». */
+.field > .field-count {
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  color: var(--text-3);
+  text-align: right;
+}
+
+.field > .field-count.field-warn {
+  text-align: left;
+  color: #b45309;
+}
+
+.field > .admin-note {
+  font-weight: 400;
+}
+
+.field input[aria-invalid="true"] {
+  border-color: #b45309;
+}
+
+.field input:disabled {
+  background: var(--surface-inset);
+  color: var(--text-3);
 }
 
 /* ── Aperçu de catégorie ─────────────────────────────────────────────────── */

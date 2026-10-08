@@ -21,10 +21,20 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { normalizeCatalog, asText, safeLogo, MAX_LOGO_CHARS } = require("../lib/catalog");
+const { normalizeCatalog, asText, safeLogo, safeImage, MAX_LOGO_CHARS, MAX_IMAGE_CHARS } =
+  require("../lib/catalog");
 
 const APP_NAME = "StrasEdu Administration";
 const PROJECT_DIR = path.resolve(__dirname, "..");
+
+/**
+ * Hauteur de réduction d'un visuel, selon l'usage. Les bornes évitent qu'un
+ * appelant fasse produire une image minuscule (illisible dans l'application)
+ * ou énorme (refusée par le plafond du catalogue, après un long encodage).
+ */
+const IMAGE_HEIGHT_MIN = 200;
+const IMAGE_HEIGHT_MAX = 360;
+const IMAGE_HEIGHT_DEFAULT = 320;
 
 /**
  * Ressource livrée à côté de l'archive applicative. La couche native de
@@ -206,6 +216,23 @@ function bumpVersion(version) {
   while (parts.length < 3) parts.push("0");
   parts[2] = String((parseInt(parts[2], 10) || 0) + 1);
   return parts.slice(0, 3).join(".");
+}
+
+/**
+ * Encode une image en data URI sous le plafond du catalogue. Le PNG convient
+ * aux captures d'écran (aplats, texte) ; une photographie, elle, le dépasse :
+ * on retombe alors sur du JPEG à qualité décroissante, plutôt que de refuser
+ * une image que l'administrateur a légitimement choisie.
+ */
+function encodeWithinBudget(image, maxChars) {
+  const png = "data:image/png;base64," + image.toPNG().toString("base64");
+  if (png.length <= maxChars) return png;
+
+  for (const quality of [90, 80, 70, 60, 50]) {
+    const jpeg = "data:image/jpeg;base64," + image.toJPEG(quality).toString("base64");
+    if (jpeg.length <= maxChars) return jpeg;
+  }
+  return null;
 }
 
 /* ─── Fenêtre ────────────────────────────────────────────────────────────── */
@@ -428,6 +455,40 @@ function registerIpc() {
       return { ok: false, error: "Image trop lourde une fois encodée." };
     }
     return { ok: true, logo: dataUri, source: result.filePaths[0] };
+  });
+
+  /**
+   * Visuel d'outil ou d'information : même traitement que le logo, à une
+   * hauteur choisie par l'appelant (320 px pour une vignette, 200 px pour un
+   * bandeau) et sous le plafond des images d'outil.
+   */
+  ipcMain.handle("admin:pick-image", async (_event, options) => {
+    const opts = options && typeof options === "object" ? options : {};
+    const asked = Math.round(Number(opts.height));
+    const height = Number.isFinite(asked)
+      ? Math.max(IMAGE_HEIGHT_MIN, Math.min(IMAGE_HEIGHT_MAX, asked))
+      : IMAGE_HEIGHT_DEFAULT;
+
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: asText(opts.title, 80) || "Choisir une image",
+      filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp"] }],
+      properties: ["openFile"]
+    });
+    if (result.canceled || !result.filePaths.length) return { ok: false, canceled: true };
+
+    const image = nativeImage.createFromPath(result.filePaths[0]);
+    if (image.isEmpty()) return { ok: false, error: "Image illisible." };
+
+    // Une image déjà plus petite que la cible n'est pas agrandie : cela
+    // n'ajouterait que du poids au catalogue.
+    const size = image.getSize();
+    const resized = size.height > height ? image.resize({ height, quality: "best" }) : image;
+
+    const dataUri = encodeWithinBudget(resized, MAX_IMAGE_CHARS);
+    if (!dataUri || !safeImage(dataUri, MAX_IMAGE_CHARS)) {
+      return { ok: false, error: "Image trop lourde une fois encodée." };
+    }
+    return { ok: true, image: dataUri, source: result.filePaths[0] };
   });
 
   ipcMain.handle("admin:reveal", (_event, filePath) => {

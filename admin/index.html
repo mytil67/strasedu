@@ -33,6 +33,8 @@
   <nav class="admin-tabs" role="tablist" aria-label="Sections">
     <button class="admin-tab" type="button" role="tab" data-tab="apps" aria-pressed="true">Outils</button>
     <button class="admin-tab" type="button" role="tab" data-tab="categories" aria-pressed="false">Catégories</button>
+    <button class="admin-tab" type="button" role="tab" data-tab="highlights" aria-pressed="false">Mise en avant</button>
+    <button class="admin-tab" type="button" role="tab" data-tab="department" aria-pressed="false">Département</button>
     <button class="admin-tab" type="button" role="tab" data-tab="application" aria-pressed="false">Application</button>
   </nav>
 
@@ -125,6 +127,34 @@
             <div class="icon-picker" id="app-icon-picker" role="radiogroup" aria-label="Icône de l'outil"></div>
           </div>
 
+          <div class="field">
+            <span>Visuels <em>(facultatifs — montrés dans l'application)</em></span>
+            <div class="visuals">
+              <div class="visual-block">
+                <span class="visual-label">Vignette <em>(carte de l'outil)</em></span>
+                <div class="visual-row">
+                  <span class="visual-preview" id="app-image-preview"></span>
+                  <div class="visual-actions">
+                    <button class="btn btn-sm" type="button" data-act="app-image-pick">
+                      Choisir une image…
+                    </button>
+                    <button class="btn btn-sm" type="button" data-act="app-image-clear">
+                      Retirer la vignette
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="visual-block">
+                <span class="visual-label">Captures d'écran <em>(4 au maximum)</em></span>
+                <ul class="shot-list" id="app-shots" aria-label="Captures d'écran de l'outil"></ul>
+                <button class="btn btn-sm" type="button" data-act="shot-add" id="app-shot-add">
+                  Ajouter une capture…
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div class="admin-form-actions">
             <button class="btn btn-sm" type="button" data-act="app-delete">Supprimer cet outil</button>
           </div>
@@ -176,6 +206,145 @@
           <div class="admin-form-actions">
             <button class="btn btn-sm" type="button" data-act="cat-delete">Supprimer cette catégorie</button>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Mise en avant ───────────────────────────────────────────────── -->
+    <section class="admin-panel" data-panel="highlights" role="tabpanel" hidden>
+      <aside class="admin-list">
+        <div class="admin-list-head">
+          <span class="admin-list-title">Mises en avant</span>
+          <button class="btn btn-sm btn-primary" type="button" data-act="high-add" id="high-add">
+            Ajouter une mise en avant
+          </button>
+        </div>
+        <ul class="admin-items" id="high-list"></ul>
+      </aside>
+
+      <div class="admin-form">
+        <p class="admin-hint" id="high-empty">
+          Sélectionnez une mise en avant à gauche, ou créez-en une : c'est le
+          « du moment » affiché en tête de l'accueil.
+        </p>
+
+        <div class="admin-fields" id="high-fields" hidden>
+          <label class="field">
+            <span>Libellé <em>(60 caractères au maximum)</em></span>
+            <input type="text" id="h-label" maxlength="60" autocomplete="off"
+                   placeholder="À la une" aria-describedby="h-label-count">
+            <span class="field-count" id="h-label-count">0 / 60</span>
+          </label>
+
+          <div class="field">
+            <span>
+              Outils <em>(1 à 12 — l'ordre de sélection est l'ordre d'affichage)</em>
+            </span>
+            <div class="search admin-search pick-search">
+              <input type="search" id="h-filter" placeholder="Filtrer les outils…"
+                     aria-label="Filtrer les outils à mettre en avant">
+            </div>
+            <ul class="pick-list" id="h-choices" aria-label="Outils du catalogue"></ul>
+            <span class="admin-note" id="h-note"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Département ─────────────────────────────────────────────────── -->
+    <section class="admin-panel admin-panel-single" data-panel="department" role="tabpanel" hidden>
+      <div class="admin-form admin-form-wide">
+        <div class="admin-fields">
+          <div class="field-row">
+            <label class="field">
+              <span>En-tête <em>(facultatif)</em></span>
+              <input type="text" id="d-title" maxlength="120" autocomplete="off"
+                     placeholder="Informations du département informatique">
+            </label>
+            <label class="field">
+              <span>Sous-titre <em>(facultatif)</em></span>
+              <input type="text" id="d-subtitle" maxlength="200" autocomplete="off"
+                     placeholder="Maintenance, ENT, équipements…">
+            </label>
+          </div>
+
+          <div class="field">
+            <span>Informations <em>(carrousel affiché sur l'accueil des postes)</em></span>
+            <div class="news-editor">
+              <div class="news-head">
+                <span class="admin-note" id="news-count">Aucune information.</span>
+                <button class="btn btn-sm btn-primary" type="button" data-act="news-add" id="news-add">
+                  Ajouter une information
+                </button>
+              </div>
+              <ul class="news-list" id="news-list" aria-label="Informations du département"></ul>
+            </div>
+          </div>
+
+          <div class="news-form" id="news-form" hidden>
+            <div class="field-row">
+              <label class="field">
+                <span>Titre <em>(120 caractères au maximum)</em></span>
+                <input type="text" id="n-title" maxlength="120" autocomplete="off"
+                       aria-describedby="n-title-count">
+                <span class="field-count" id="n-title-count">0 / 120</span>
+              </label>
+              <label class="field field-date">
+                <span>Date <em>(facultative)</em></span>
+                <input type="text" id="d-date" maxlength="32" autocomplete="off"
+                       placeholder="8 octobre 2026" aria-describedby="d-date-count">
+                <span class="field-count" id="d-date-count">0 / 32</span>
+              </label>
+            </div>
+
+            <div class="field">
+              <span>Texte <em>(600 caractères au maximum)</em></span>
+              <textarea id="n-text" rows="4" maxlength="600"
+                        aria-describedby="n-text-count"></textarea>
+              <span class="field-count" id="n-text-count">0 / 600</span>
+            </div>
+
+            <div class="field">
+              <span>Bandeau <em>(facultatif)</em></span>
+              <div class="visual-row">
+                <span class="visual-preview visual-preview-wide" id="n-image-preview"></span>
+                <div class="visual-actions">
+                  <button class="btn btn-sm" type="button" data-act="news-image-pick">
+                    Choisir une image…
+                  </button>
+                  <button class="btn btn-sm" type="button" data-act="news-image-clear">
+                    Retirer le bandeau
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="field-row">
+              <label class="field">
+                <span>Lien <em>(http ou https uniquement)</em></span>
+                <input type="url" id="n-url" maxlength="2048" autocomplete="off" spellcheck="false"
+                       placeholder="https://…" aria-describedby="n-url-note">
+                <span class="field-count field-warn" id="n-url-note"></span>
+              </label>
+              <label class="field">
+                <span>Libellé du lien <em>(60 caractères au maximum)</em></span>
+                <input type="text" id="n-link-label" maxlength="60" autocomplete="off"
+                       placeholder="En savoir plus" aria-describedby="n-link-count n-link-note">
+                <span class="field-count" id="n-link-count">0 / 60</span>
+                <span class="admin-note" id="n-link-note"></span>
+              </label>
+            </div>
+
+            <div class="admin-form-actions">
+              <button class="btn btn-sm" type="button" data-act="news-delete">
+                Supprimer cette information
+              </button>
+            </div>
+          </div>
+
+          <p class="admin-hint" id="news-hint">
+            Sélectionnez une information dans la liste, ou ajoutez-en une.
+          </p>
         </div>
       </div>
     </section>

@@ -34,6 +34,10 @@ contextBridge.exposeInMainWorld("admin", {
   /** Choisir le logo officiel (réduit par la couche native). */
   pickLogo: () => ipcRenderer.invoke("admin:pick-logo"),
 
+  /** Choisir un visuel (vignette d'outil, bandeau d'information), réduit sur
+      une hauteur donnée puis encodé en data URI validé. */
+  pickImage: (options) => ipcRenderer.invoke("admin:pick-image", options),
+
   /** Vérifier le catalogue sans rien écrire. */
   validate: (catalog) => ipcRenderer.invoke("admin:validate", catalog),
 

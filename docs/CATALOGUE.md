@@ -20,8 +20,8 @@ publie sur le partage réseau.
 
 | Fichier | Usage |
 | --- | --- |
-| `StrasEdu-Administration-2.0.0-setup.exe` | Installation classique : menu Démarrer et raccourci sur le bureau. |
-| `StrasEdu-Administration-2.0.0-portable.exe` | Aucune installation : double-clic, l'outil s'ouvre. Pratique depuis une clé USB ou un partage. |
+| `StrasEdu-Administration-2.1.1-setup.exe` | Installation classique : menu Démarrer et raccourci sur le bureau. |
+| `StrasEdu-Administration-2.1.1-portable.exe` | Aucune installation : double-clic, l'outil s'ouvre. Pratique depuis une clé USB ou un partage. |
 
 Aucun droit administrateur n'est requis, ni Node, ni npm : ce sont des
 exécutables autonomes.
@@ -41,13 +41,34 @@ npm run build:admin     # écrit dans dist-admin/
 
 | Onglet | Ce qu'on y fait |
 | --- | --- |
-| **Outils** | Ajouter, modifier, supprimer un outil ; lui affecter une icône parmi celles de StrasEdu, ou revenir à la pastille à deux lettres ; régler catégorie, type (site web ou logiciel installé), mots-clés, pastille chiffrée. |
+| **Outils** | Ajouter, modifier, supprimer un outil ; lui affecter une icône parmi celles de StrasEdu, ou revenir à la pastille à deux lettres ; lui associer un **logo, une illustration et jusqu'à quatre captures d'écran** ; régler catégorie, type (site web ou logiciel installé), mots-clés, pastille chiffrée. |
 | **Catégories** | Créer une catégorie, la renommer (les outils suivent), choisir son icône, sa couleur et sa description. |
+| **Mise en avant** | Composer les **sélections d'outils mises en avant** sous le carrousel — « Le moment », « Le mois » : un libellé, puis les outils retenus, dans l'ordre où ils apparaîtront. |
+| **Département** | Rédiger les **informations du carrousel** affiché en tête de l'accueil : titre, texte, image, lien « En savoir plus » et date. Les flèches changent l'ordre d'affichage. |
 | **Application** | Logo de StrasEdu (il remplace la marque par défaut), version du catalogue, et dossier de publication. |
 
 L'aperçu de catégorie et le bandeau supérieur montrent le résultat en direct.
 La barre d'état indique en permanence si le catalogue est conforme, et les
 outils fautifs sont marqués « à vérifier » dans la liste.
+
+### Informations, mises en avant et visuels
+
+Ces trois contenus se publient comme le reste du catalogue : aucune
+réinstallation, les postes suivent à la prochaine vérification.
+
+| Contenu | Règles |
+| --- | --- |
+| **Informations** (carrousel) | 12 au maximum. Une information sans titre, sans texte et sans image est écartée. Le lien doit être en `http` ou `https` : toute autre adresse est refusée à la saisie, et retirée à la validation si elle vient d'ailleurs. |
+| **Mises en avant** | 3 sélections au maximum, 12 outils par sélection. Un outil retiré du catalogue disparaît aussi de la sélection, sans erreur. |
+| **Visuels d'outils** | Une illustration et jusqu'à quatre captures d'écran par outil. Les images sont intégrées au catalogue : l'outil les redimensionne à l'import (PNG, puis JPEG si le poids dépasse le plafond). Une image au-delà de 512 Ko de texte est écartée à la validation. |
+
+> **Poids du catalogue.** Les visuels sont embarqués : c'est ce qui permet une
+> seule publication, sans hébergement d'images, et un affichage qui ne dépend
+> pas du réseau. En contrepartie, chaque image alourdit `apps.json` — que
+> 2000 postes relisent. Restez sobre : une illustration par outil suffit
+> largement, et les captures d'écran sont surtout utiles aux outils peu connus.
+> Au-delà de 6 Mo de visuels cumulés, la validation ignore les images
+> suivantes et le signale dans le journal de l'application.
 
 ### Publier
 
@@ -73,10 +94,10 @@ Réservé au développement :
 npm run selfcheck:admin
 ```
 
-Pilote l'interface sur un catalogue temporaire et vérifie 57 points : ajout,
-modification, suppression, icônes, catégories, renommage, logo, enregistrement,
-publication, refus d'un catalogue invalide. Les captures sont écrites dans
-`.preview/admin/`.
+Pilote l'interface sur un catalogue temporaire et vérifie chaque capacité, point
+par point : outils, icônes, visuels et captures d'écran, catégories, informations
+du carrousel, mises en avant, logo, enregistrement, publication, refus d'un
+catalogue invalide. Les captures sont écrites dans `.preview/admin/`.
 
 ---
 
@@ -127,7 +148,9 @@ supplémentaire, pas de jeton, et les droits sont ceux que vous gérez déjà.
 - `path` absolu en `.exe` ou `.lnk` pour un outil `"type": "local"` ;
 - `category` doit exister dans la liste `categories` ;
 - les `keywords` améliorent la recherche : ce sont les mots que les enseignants
-  taperont (« enregistrer », « voix », « micro »…).
+  taperont (« enregistrer », « voix », « micro »…) ;
+- `news`, `highlights`, `image` et `screenshots` sont optionnels et suivent les
+  règles du tableau « Informations, mises en avant et visuels » ci-dessus.
 
 ### Étape 2 — Valider avant de publier
 
@@ -259,6 +282,9 @@ automatiquement.
 | Aucun poste ne récupère | Adresse injoignable, ou projet GitLab privé sans accès anonyme. |
 | `catalogue distant : absent` dans la trace | `strasedu.config.json` mal placé (il va dans `resources\`). |
 | Les tuiles d'accueil sont ternes | `categoryMeta` incomplet : icône, couleur et description par catégorie. |
+| Une information du carrousel n'a pas de lien | Son `url` n'était pas en `http` ou `https` : elle est publiée sans lien. |
+| Un visuel n'apparaît pas sur les postes | Image au-delà de 512 Ko de texte, ou budget de 6 Mo de visuels atteint. Le journal de l'application (`%APPDATA%\StrasEdu\logs\strasedu.log`) nomme l'outil concerné. |
+| Une mise en avant est incomplète | Un des outils choisis n'existe plus dans le catalogue : il est écarté silencieusement. |
 | Un outil installé ne se lance pas | `path` inexistant sur ce poste : *« Le logiciel n'est pas installé sur ce poste »*. |
 
 ---

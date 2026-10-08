@@ -6,7 +6,12 @@
 
      • ajouter, modifier, supprimer un outil ;
      • lui affecter une icône, puis la retirer ;
+     • lui poser une vignette et des captures d'écran, et respecter le plafond ;
      • créer une catégorie, la renommer, vérifier que les outils suivent ;
+     • composer les mises en avant : groupes, ordre, outils retenus, plafonds,
+       suppression des identifiants que les postes écarteraient ;
+     • composer le carrousel du département : en-tête, informations, ordre,
+       date, refus d'une adresse de lien qui n'est pas http(s) ;
      • définir le logo officiel ;
      • enregistrer, puis publier sur le partage avec incrément de version ;
      • refuser un catalogue invalide en nommant l'outil fautif.
@@ -398,7 +403,590 @@ async function run(win) {
     accents.light !== "#0f9d63" && accents.dark !== "#0f9d63",
     accents.light + " / " + accents.dark);
 
-  /* ── 10. Silence de la console ─────────────────────────────────────────── */
+  /* ── 10. Visuels d'un outil ────────────────────────────────────────────── */
+  step("visuels d'un outil");
+  // Les images viennent normalement d'un sélecteur de fichier natif, qu'un
+  // automate ne peut pas piloter : on fabrique ici ce que la couche native
+  // rendrait (un data URI réduit), puis on écrit dans l'état et on redemande
+  // le rendu, comme le ferait le dialogue.
+  const makeImage = (w, h, color, label) =>
+    js(
+      "(()=>{const c=document.createElement('canvas');c.width=" + w + ";c.height=" + h + ";" +
+      "const x=c.getContext('2d');x.fillStyle=" + JSON.stringify(color) + ";" +
+      "x.fillRect(0,0," + w + "," + h + ");x.fillStyle='#ffffff';" +
+      "x.font='bold " + Math.round(h / 3) + "px sans-serif';" +
+      "x.fillText(" + JSON.stringify(label) + ",20," + Math.round(h * 0.62) + ");" +
+      "return c.toDataURL('image/png');})()"
+    );
+
+  const thumb = await makeImage(320, 200, "#2563eb", "OUTIL");
+  const shots = await js(
+    "(()=>{const out=[];const colors=['#0f766e','#b45309','#7c3aed','#be123c'];" +
+    "for(let i=0;i<4;i++){const c=document.createElement('canvas');c.width=320;c.height=200;" +
+    "const x=c.getContext('2d');x.fillStyle=colors[i];x.fillRect(0,0,320,200);" +
+    "x.fillStyle='#ffffff';x.font='bold 90px sans-serif';x.fillText(String(i+1),130,140);" +
+    "out.push(c.toDataURL('image/png'));}return out;})()"
+  );
+  check("images de travail encodées", thumb.indexOf("data:image/png;base64,") === 0 &&
+    shots.length === 4 && shots[0].indexOf("data:image/") === 0);
+
+  // Le dialogue de choix de fichier n'est pas automatisable — comme pour le
+  // logo — mais tout ce qu'il fait après le choix l'est : réduction à la
+  // hauteur demandée, puis acceptation par la validation partagée.
+  const { safeImage, MAX_IMAGE_CHARS } = require("../lib/catalog");
+  const bigImage = source.resize({ height: 320, quality: "best" }).toDataURL();
+  check("vignette réduite à 320 px",
+    nativeImage.createFromDataURL(bigImage).getSize().height === 320);
+  check("vignette acceptée par la validation partagée", !!safeImage(bigImage, MAX_IMAGE_CHARS),
+    bigImage.length + " caractères");
+  check("bandeau réduit à 200 px accepté",
+    !!safeImage(source.resize({ height: 200, quality: "best" }).toDataURL(), MAX_IMAGE_CHARS));
+  check("visuel au-delà du plafond refusé",
+    safeImage("data:image/png;base64," + "A".repeat(600000), MAX_IMAGE_CHARS) === null);
+
+  const visualApp = await js(
+    "(()=>{const s=window.__adminState;const app=s.catalog.apps.find(a=>a.id===s.appId);" +
+    "app.image=" + JSON.stringify(thumb) + ";window.__adminRefresh();return app.id;})()"
+  );
+  check("vignette posée sur l'outil sélectionné", !!visualApp, String(visualApp));
+  check("vignette rendue dans la liste des outils",
+    await js("!!document.querySelector('#app-list [aria-selected=\"true\"] .admin-item-mark img')"));
+  check("vignette rendue dans l'aperçu du formulaire",
+    await js("!!document.querySelector('#app-image-preview img')"));
+
+  await click('[data-act="app-image-clear"]');
+  await wait(250);
+  check("vignette retirée de l'outil",
+    (await js("!!window.__adminState.catalog.apps.find(" +
+      "a=>a.id===window.__adminState.appId).image")) === false);
+  // Reposée aussitôt : la publication doit la retrouver intacte.
+  await js(
+    "(()=>{const s=window.__adminState;const app=s.catalog.apps.find(a=>a.id===s.appId);" +
+    "app.image=" + JSON.stringify(thumb) + ";window.__adminRefresh();return 'ok';})()"
+  );
+  check("vignette reposée sur l'outil",
+    await js("!!document.querySelector('#app-image-preview img')"));
+
+  await js(
+    "(()=>{const s=window.__adminState;const app=s.catalog.apps.find(a=>a.id===s.appId);" +
+    "app.screenshots=" + JSON.stringify(shots) + ";window.__adminRefresh();return 'ok';})()"
+  );
+  check("quatre captures affichées",
+    (await js("document.querySelectorAll('#app-shots .shot-thumb img').length")) === 4);
+  check("ajout de capture désactivé au plafond",
+    (await js("document.getElementById('app-shot-add').disabled")) === true);
+
+  // Un bouton désactivé n'émet aucun clic : le sélecteur natif ne s'ouvre donc
+  // pas, et le plafond reste tenu.
+  await click('[data-act="shot-add"]');
+  await wait(250);
+  check("plafond de 4 captures respecté",
+    (await js("window.__adminState.catalog.apps.find(" +
+      "a=>a.id===window.__adminState.appId).screenshots.length")) === 4);
+
+  await click('#app-shots [data-act="shot-remove"]');
+  await wait(250);
+  check("capture retirée",
+    (await js("window.__adminState.catalog.apps.find(" +
+      "a=>a.id===window.__adminState.appId).screenshots.length")) === 3);
+  check("ajout de capture de nouveau possible",
+    (await js("document.getElementById('app-shot-add').disabled")) === false);
+  // Le bloc « Visuels » est bas dans le formulaire : on l'amène à l'écran pour
+  // que la capture le montre.
+  await js("(()=>{const f=document.getElementById('app-image-preview')" +
+    ".closest('.admin-form');f.scrollTop=f.scrollHeight;return f.scrollTop;})()");
+  await shot("06-visuels");
+
+  /* ── 11. Département : informations du carrousel ───────────────────────── */
+  step("département");
+  const newsModel = () =>
+    js(
+      "(()=>{const s=window.__adminState;const n=s.catalog.news;" +
+      "return {title:(n&&n.title)||'',subtitle:(n&&n.subtitle)||'',index:s.newsIndex," +
+      "items:((n&&Array.isArray(n.items))?n.items:[]).map(i=>({id:i.id,title:i.title," +
+      "text:i.text,date:i.date||null,url:i.url||null,linkLabel:i.linkLabel||null," +
+      "image:!!i.image}))};})()"
+    );
+
+  await click('[data-tab="department"]');
+  await wait(250);
+  check("onglet Département ouvert",
+    (await js("document.querySelector('[data-panel=\"department\"]').hidden")) === false);
+  check("onglet Département marqué actif",
+    (await js("document.querySelector('[data-tab=\"department\"]').getAttribute('aria-pressed')")) ===
+      "true");
+  check("panneau des outils refermé",
+    (await js("document.querySelector('[data-panel=\"apps\"]').hidden")) === true);
+
+  // Le catalogue livré porte déjà un carrousel : l'outil doit l'afficher tel
+  // quel, et les vérifications suivantes se mesurent par rapport à lui, sans
+  // supposer qu'il soit vide.
+  const shipped = await newsModel();
+  check("carrousel livré lu et affiché",
+    shipped.items.length >= 1 &&
+      (await js("document.querySelectorAll('#news-list .news-item').length")) ===
+        shipped.items.length,
+    shipped.items.length + " informations");
+  check("en-tête du carrousel livré affiché",
+    (await js("document.getElementById('d-title').value")) === shipped.title, shipped.title);
+
+  const base = shipped.items.length;
+  await setField("d-title", "Informations du département");
+  await setField("d-subtitle", "Maintenance et ENT");
+  await click('[data-act="news-add"]');
+  await wait(300);
+  let news = await newsModel();
+  check("information ajoutée", news.items.length === base + 1,
+    news.items.length + " (avant : " + base + ")");
+  check("information ajoutée sélectionnée", news.index === base, String(news.index));
+  check("en-tête du carrousel écrit", news.title === "Informations du département", news.title);
+  check("sous-titre du carrousel écrit", news.subtitle === "Maintenance et ENT", news.subtitle);
+  check("identifiant d'information généré", /^info-/.test(news.items[base].id),
+    news.items[base].id);
+
+  await setField("n-title", "Coupure de courant jeudi");
+  await setField("n-text", "Le bâtiment B sera hors tension de 8 h à 12 h.");
+  await wait(300);
+  news = await newsModel();
+  check("titre de l'information écrit", news.items[news.index].title === "Coupure de courant jeudi",
+    news.items[news.index].title);
+  check("texte de l'information écrit",
+    news.items[news.index].text === "Le bâtiment B sera hors tension de 8 h à 12 h.",
+    news.items[news.index].text);
+
+  const counters = await js(
+    "(()=>({titre:document.getElementById('n-title-count').textContent," +
+    "long:document.getElementById('n-title').value.length," +
+    "texte:document.getElementById('n-text-count').textContent}))()"
+  );
+  check("compteur du titre à jour", counters.titre === counters.long + " / 120",
+    JSON.stringify(counters));
+
+  // Adresse refusée : elle serait écartée en silence par la validation du
+  // catalogue, donc l'outil doit la repousser et l'expliquer.
+  await setField("n-url", "javascript:alert(1)");
+  await wait(250);
+  news = await newsModel();
+  check("lien non http(s) refusé", news.items[news.index].url === null,
+    JSON.stringify(news.items[news.index]));
+  check("refus du lien expliqué",
+    /http/i.test(await js("document.getElementById('n-url-note').textContent")));
+  check("champ du lien marqué invalide",
+    (await js("document.getElementById('n-url').getAttribute('aria-invalid')")) === "true");
+  check("libellé de lien inutilisable sans lien",
+    (await js("document.getElementById('n-link-label').disabled")) === true);
+
+  await setField("n-url", "https://www.strasbourg.fr/info");
+  await setField("n-link-label", "Consulter l'annonce");
+  await wait(300);
+  news = await newsModel();
+  check("lien http(s) enregistré", news.items[news.index].url === "https://www.strasbourg.fr/info",
+    String(news.items[news.index].url));
+  check("libellé de lien enregistré", news.items[news.index].linkLabel === "Consulter l'annonce",
+    String(news.items[news.index].linkLabel));
+  check("libellé de lien activé",
+    (await js("document.getElementById('n-link-label').disabled")) === false);
+
+  const banner = await makeImage(320, 180, "#0ea5a5", "INFO");
+  await js(
+    "(()=>{const s=window.__adminState;" +
+    "s.catalog.news.items[s.newsIndex].image=" + JSON.stringify(banner) + ";" +
+    "window.__adminRefresh();return 'ok';})()"
+  );
+  check("bandeau rendu dans le formulaire",
+    await js("!!document.querySelector('#n-image-preview img')"));
+  check("vignette rendue dans la liste des informations",
+    await js("!!document.querySelector('#news-list .news-thumb img')"));
+  await shot("05-departement");
+
+  // Deuxième information, puis réordonnancement : le carrousel suit l'ordre.
+  const added = news.index;
+  await click('[data-act="news-add"]');
+  await wait(250);
+  await setField("n-title", "Nouvelle version de l'ENT");
+  await wait(250);
+  check("deux informations ajoutées",
+    (await js("window.__adminState.catalog.news.items.length")) === base + 2);
+  await click('[data-news-index="' + (added + 1) + '"] [data-act="news-up"]');
+  await wait(300);
+  news = await newsModel();
+  check("information remontée", news.items[added].title === "Nouvelle version de l'ENT",
+    news.items[added].title);
+  check("sélection suivie par l'index", news.index === added, String(news.index));
+
+  // La corbeille d'une ligne vise cette ligne, celle du formulaire vise la
+  // sélection : les deux chemins sont éprouvés ici. Après le déplacement,
+  // « Nouvelle version de l'ENT » occupe la ligne « added ».
+  await click('[data-news-index="' + added + '"] [data-act="news-delete"]');
+  await wait(300);
+  news = await newsModel();
+  check("information supprimée", news.items.length === base + 1,
+    news.items.length + " (avant : " + (base + 2) + ")");
+  check("information restante intacte", news.items[added].title === "Coupure de courant jeudi",
+    news.items[added].title);
+
+  await click('#news-form [data-act="news-delete"]');
+  await wait(300);
+  news = await newsModel();
+  check("carrousel livré préservé par les suppressions", news.items.length === base,
+    news.items.length + " (attendu " + base + ")");
+  check("suppression de la dernière information retirée",
+    news.items.every((item) => item.title !== "Coupure de courant jeudi"));
+
+  /* ── 12. Plafond des informations ──────────────────────────────────────── */
+  step("plafond des informations");
+  const newsCap = await js(
+    "(()=>{const s=window.__adminState;const items=[];" +
+    "for(let i=0;i<12;i++)items.push({id:'info-'+i,title:'Information '+(i+1),text:'Texte '+(i+1)});" +
+    "s.catalog.news=Object.assign({},s.catalog.news,{items:items});s.newsIndex=0;" +
+    "window.__adminRefresh();" +
+    "return document.getElementById('news-add').disabled;})()"
+  );
+  check("ajout d'information désactivé à 12", newsCap === true, String(newsCap));
+  await click('[data-act="news-add"]');
+  await wait(250);
+  check("plafond de 12 informations respecté",
+    (await js("window.__adminState.catalog.news.items.length")) === 12);
+
+  /* ── 13. Publication des nouveautés ────────────────────────────────────── */
+  step("publication des nouveautés");
+  await js(
+    "(()=>{const s=window.__adminState;const app=s.catalog.apps.find(a=>a.id===s.appId);" +
+    "s.catalog.highlights=[{label:'Du moment',appIds:[app.id]}];" +
+    "window.__adminRefresh();return 'ok';})()"
+  );
+  const noveltyCheck = await js(
+    "window.admin.validate(window.__adminState.catalog).then(r=>({ok:r.ok,problems:r.problems}))"
+  );
+  check("catalogue avec nouveautés valide", !!noveltyCheck && noveltyCheck.ok === true,
+    JSON.stringify(noveltyCheck && noveltyCheck.problems));
+
+  const republished = await js(
+    "window.admin.publish(window.__adminState.catalog).then(" +
+    "r=>({ok:r.ok,version:r.version,problems:r.problems}))"
+  );
+  check("publication des nouveautés acceptée", !!republished && republished.ok === true,
+    JSON.stringify(republished && republished.problems));
+
+  const { normalizeCatalog, MAX_NEWS_ITEMS, MAX_SCREENSHOTS } = require("../lib/catalog");
+  const rawPublished = JSON.parse(fs.readFileSync(path.join(SHARE, "apps.json"), "utf-8"));
+  check("carrousel écrit sur le partage",
+    !!rawPublished.news && rawPublished.news.items.length === 12,
+    rawPublished.news && String(rawPublished.news.items.length));
+  check("plafonds du modèle respectés à l'écriture",
+    rawPublished.news.items.length <= MAX_NEWS_ITEMS &&
+      rawPublished.apps.every((a) => !Array.isArray(a.screenshots) ||
+        a.screenshots.length <= MAX_SCREENSHOTS));
+
+  const normalized = normalizeCatalog(rawPublished);
+  check("carrousel conservé par la normalisation",
+    !!normalized.news && normalized.news.items.length === 12,
+    normalized.news && String(normalized.news.items.length));
+  check("en-tête du carrousel conservé",
+    !!normalized.news && normalized.news.title === "Informations du département");
+  check("mises en avant conservées",
+    Array.isArray(normalized.highlights) && normalized.highlights.length === 1 &&
+      normalized.highlights[0].appIds.length === 1,
+    JSON.stringify(normalized.highlights));
+  const shownApp = normalized.apps.find((a) => a.id === visualApp);
+  check("vignette d'outil conservée",
+    !!shownApp && shownApp.image === thumb, shownApp && String(shownApp.image).slice(0, 32));
+  check("captures d'écran conservées",
+    !!shownApp && Array.isArray(shownApp.screenshots) && shownApp.screenshots.length === 3,
+    shownApp && String((shownApp.screenshots || []).length));
+  check("outils toujours présents après normalisation",
+    normalized.apps.length === rawPublished.apps.length,
+    normalized.apps.length + " / " + rawPublished.apps.length);
+
+  /* ── 14. Mise en avant ─────────────────────────────────────────────────── */
+  step("mise en avant");
+  const highModel = () =>
+    js(
+      "(()=>{const s=window.__adminState;const h=Array.isArray(s.catalog.highlights)" +
+      "?s.catalog.highlights:null;return {present:!!h,index:s.highIndex," +
+      "groups:(h||[]).map(g=>({label:g.label,appIds:(g.appIds||[]).slice()}))," +
+      "ids:s.catalog.apps.map(a=>a.id)};})()"
+    );
+
+  await click('[data-tab="highlights"]');
+  await wait(250);
+  check("onglet Mise en avant ouvert",
+    (await js("document.querySelector('[data-panel=\"highlights\"]').hidden")) === false);
+  check("onglet Mise en avant marqué actif",
+    (await js("document.querySelector('[data-tab=\"highlights\"]').getAttribute('aria-pressed')")) ===
+      "true");
+  check("panneau du département refermé",
+    (await js("document.querySelector('[data-panel=\"department\"]').hidden")) === true);
+
+  // Le catalogue porte déjà des mises en avant : elles doivent s'afficher
+  // telles quelles, et le reste du scénario se mesure par rapport à elles.
+  let high = await highModel();
+  const shippedGroups = high.groups.length;
+  check("mises en avant du catalogue lues et affichées",
+    high.present && shippedGroups >= 1 &&
+      (await js("document.querySelectorAll('#high-list .admin-item').length")) === shippedGroups,
+    JSON.stringify(high.groups));
+
+  // Un catalogue sans mise en avant ne doit pas en gagner une par simple
+  // enregistrement : c'est le cas des catalogues 1.x.
+  await js("(()=>{delete window.__adminState.catalog.highlights;" +
+    "window.__adminRefresh();return 'ok';})()");
+  check("catalogue sans mise en avant accepté",
+    (await js("document.querySelectorAll('#high-list .admin-item').length")) === 0);
+  await click('[data-act="save"]');
+  await wait(900);
+  const withoutHighlights = JSON.parse(fs.readFileSync(CATALOG, "utf-8"));
+  check("mise en avant absente non créée par l'enregistrement",
+    !Object.prototype.hasOwnProperty.call(withoutHighlights, "highlights"),
+    JSON.stringify(withoutHighlights.highlights));
+
+  // Ajout d'un groupe, puis renommage.
+  await click('[data-act="high-add"]');
+  await wait(300);
+  high = await highModel();
+  check("mise en avant ajoutée", high.groups.length === 1, JSON.stringify(high.groups));
+  check("groupe ajouté sélectionné", high.index === 0, String(high.index));
+  check("libellé par défaut du groupe", high.groups[0].label === "À la une", high.groups[0].label);
+  check("groupe sans outil signalé",
+    await js("!!document.querySelector('#high-list .admin-item-warn')"));
+  check("une case à cocher par outil",
+    (await js("document.querySelectorAll('#h-choices input[data-pick]').length")) === high.ids.length,
+    String(high.ids.length));
+
+  await setField("h-label", "Du moment");
+  await wait(250);
+  high = await highModel();
+  check("libellé écrit", high.groups[0].label === "Du moment", high.groups[0].label);
+  const labelCounts = await js(
+    "(()=>({compte:document.getElementById('h-label-count').textContent," +
+    "long:document.getElementById('h-label').value.length}))()"
+  );
+  check("compteur du libellé à jour", labelCounts.compte === labelCounts.long + " / 60",
+    JSON.stringify(labelCounts));
+  check("libellé repris dans la liste",
+    (await js("document.querySelector('#high-list .admin-item-name').textContent")) === "Du moment");
+
+  // Cases à cocher : l'ordre de sélection est l'ordre d'affichage.
+  const picks = high.ids.slice(0, 3);
+  const boxOf = (id) => '#h-choices input[data-pick="' + id + '"]';
+  for (const id of picks) {
+    await click(boxOf(id));
+    await wait(180);
+  }
+  high = await highModel();
+  check("outils cochés dans l'ordre de sélection",
+    JSON.stringify(high.groups[0].appIds) === JSON.stringify(picks),
+    JSON.stringify(high.groups[0].appIds));
+  check("numéros d'ordre affichés",
+    (await js("[...document.querySelectorAll('#h-choices .pick-order')]" +
+      ".map(n=>n.textContent).join(',')")) === "1,2,3");
+  check("bouton de retrait par outil retenu",
+    (await js("document.querySelectorAll('#h-choices [data-act=\"high-drop\"]').length")) === 3);
+  check("compte des outils retenus affiché",
+    /^3 \/ 12/.test(await js("document.getElementById('h-note').textContent")),
+    await js("document.getElementById('h-note').textContent"));
+  await shot("07-mise-en-avant");
+
+  await click(boxOf(picks[1]));
+  await wait(250);
+  high = await highModel();
+  check("outil décoché retiré du groupe",
+    JSON.stringify(high.groups[0].appIds) === JSON.stringify([picks[0], picks[2]]),
+    JSON.stringify(high.groups[0].appIds));
+
+  await click(boxOf(picks[1]));
+  await wait(250);
+  high = await highModel();
+  check("outil recoché placé en fin d'ordre",
+    JSON.stringify(high.groups[0].appIds) === JSON.stringify([picks[0], picks[2], picks[1]]),
+    JSON.stringify(high.groups[0].appIds));
+
+  await click('#h-choices [data-act="high-drop"][data-high-app="' + picks[0] + '"]');
+  await wait(250);
+  high = await highModel();
+  check("bouton de retrait efficace",
+    JSON.stringify(high.groups[0].appIds) === JSON.stringify([picks[2], picks[1]]),
+    JSON.stringify(high.groups[0].appIds));
+
+  // Filtre par nom : il ne doit masquer que la liste, jamais le champ.
+  await setField("h-filter", picks[2]);
+  await wait(250);
+  const filtered = await js("document.querySelectorAll('#h-choices .pick-item').length");
+  check("filtre du sélecteur d'outils", filtered >= 1 && filtered < high.ids.length,
+    filtered + " / " + high.ids.length);
+  await setField("h-filter", "");
+  await wait(250);
+
+  /* ── 15. Plafonds et nettoyage des mises en avant ──────────────────────── */
+  step("plafonds des mises en avant");
+  const capPicks = high.ids.slice(0, 12);
+  await js(
+    "(()=>{const s=window.__adminState;s.catalog.highlights[s.highIndex].appIds=" +
+    JSON.stringify(capPicks) + ";window.__adminRefresh();return 'ok';})()"
+  );
+  const boxes = await js(
+    "(()=>{const all=[...document.querySelectorAll('#h-choices input[data-pick]')];" +
+    "return {total:all.length,disabled:all.filter(i=>i.disabled).length};})()"
+  );
+  check("cases non cochées désactivées au plafond de 12",
+    boxes.disabled === boxes.total - 12, JSON.stringify(boxes));
+  check("note de plafond affichée",
+    /plafond atteint/i.test(await js("document.getElementById('h-note').textContent")),
+    await js("document.getElementById('h-note').textContent"));
+
+  // Une case désactivée n'émet aucun clic : le treizième outil ne peut pas
+  // entrer, et rien n'est reconstruit.
+  await click(boxOf(high.ids[12]));
+  await wait(250);
+  check("plafond de 12 outils respecté",
+    (await highModel()).groups[0].appIds.length === 12,
+    String((await highModel()).groups[0].appIds.length));
+
+  while ((await highModel()).groups.length < 3) {
+    await click('[data-act="high-add"]');
+    await wait(250);
+  }
+  check("trois mises en avant", (await highModel()).groups.length === 3);
+  check("ajout désactivé au plafond de 3",
+    (await js("document.getElementById('high-add').disabled")) === true);
+  await click('[data-act="high-add"]');
+  await wait(250);
+  check("plafond de 3 mises en avant respecté", (await highModel()).groups.length === 3);
+
+  // Un identifiant inconnu introduit de force doit disparaître à
+  // l'enregistrement : le poste ne doit jamais recevoir une mise en avant
+  // pointant dans le vide.
+  await js(
+    "(()=>{const s=window.__adminState;" +
+    "s.catalog.highlights[0].appIds.push('outil-fantome');" +
+    "s.catalog.highlights[0].label='  Du moment  ';window.__adminRefresh();return 'ok';})()"
+  );
+  check("identifiant inconnu présent dans l'état avant enregistrement",
+    (await highModel()).groups[0].appIds.indexOf("outil-fantome") >= 0);
+  await click('[data-act="save"]');
+  await wait(900);
+  const savedHighlights = JSON.parse(fs.readFileSync(CATALOG, "utf-8"));
+  check("identifiant inconnu retiré avant enregistrement",
+    !!savedHighlights.highlights &&
+      savedHighlights.highlights.every((g) => g.appIds.indexOf("outil-fantome") < 0),
+    JSON.stringify(savedHighlights.highlights));
+  check("identifiant inconnu retiré de l'état aussi",
+    (await highModel()).groups[0].appIds.indexOf("outil-fantome") < 0);
+  check("groupe sans outil écarté avant enregistrement",
+    !!savedHighlights.highlights && savedHighlights.highlights.length === 1,
+    savedHighlights.highlights && String(savedHighlights.highlights.length));
+  check("libellé ramené à sa forme publiée",
+    !!savedHighlights.highlights && savedHighlights.highlights[0].label === "Du moment",
+    savedHighlights.highlights && savedHighlights.highlights[0].label);
+
+  // Ordre des groupes : c'est l'ordre des cartes sur l'accueil.
+  const twoGroups = await js(
+    "(()=>{const s=window.__adminState;" +
+    "s.catalog.highlights=[{label:'Du moment',appIds:['" + picks[2] + "']}," +
+    "{label:'Du mois',appIds:['" + picks[1] + "']}];s.highIndex=1;window.__adminRefresh();" +
+    "return s.catalog.highlights.map(g=>g.label);})()"
+  );
+  check("deux groupes en place", JSON.stringify(twoGroups) === '["Du moment","Du mois"]',
+    JSON.stringify(twoGroups));
+  await click('[data-high-index="1"] [data-act="high-up"]');
+  await wait(300);
+  high = await highModel();
+  check("groupe remonté", high.groups[0].label === "Du mois", JSON.stringify(high.groups));
+  check("sélection suivie par l'index", high.index === 0, String(high.index));
+  await click('[data-high-index="0"] [data-act="high-down"]');
+  await wait(300);
+  check("groupe redescendu",
+    JSON.stringify((await highModel()).groups.map((g) => g.label)) === '["Du moment","Du mois"]',
+    JSON.stringify((await highModel()).groups));
+  await click('[data-high-index="0"] [data-act="high-delete"]');
+  await wait(300);
+  high = await highModel();
+  check("groupe supprimé", high.groups.length === 1 && high.groups[0].label === "Du mois",
+    JSON.stringify(high.groups));
+  await click('[data-high-index="0"] [data-act="high-delete"]');
+  await wait(300);
+  check("dernier groupe supprimé : liste oubliée",
+    (await highModel()).present === false);
+  check("liste des groupes vidée",
+    (await js("document.querySelectorAll('#high-list .admin-item').length")) === 0);
+
+  /* ── 16. Date d'une information ────────────────────────────────────────── */
+  step("date d'une information");
+  await click('[data-tab="department"]');
+  await wait(250);
+  // Le plafond de 12 informations a été atteint plus haut : on repart d'un
+  // carrousel court pour pouvoir en ajouter une.
+  await js("(()=>{const s=window.__adminState;" +
+    "s.catalog.news.items=s.catalog.news.items.slice(0,3);" +
+    "window.__adminRefresh();return 'ok';})()");
+  await click('[data-act="news-add"]');
+  await wait(300);
+  await setField("n-title", "Tournoi de robots");
+  await setField("d-date", "8 octobre 2026");
+  await wait(300);
+  let dated = await newsModel();
+  const dateIndex = dated.index;
+  check("date écrite dans l'information",
+    dated.items[dateIndex].date === "8 octobre 2026", String(dated.items[dateIndex].date));
+  const dateCounts = await js(
+    "(()=>({compte:document.getElementById('d-date-count').textContent," +
+    "long:document.getElementById('d-date').value.length}))()"
+  );
+  check("compteur de date à jour", dateCounts.compte === dateCounts.long + " / 32",
+    JSON.stringify(dateCounts));
+
+  await setField("d-date", "");
+  await wait(250);
+  dated = await newsModel();
+  check("information sans date acceptée", dated.items[dateIndex].date === null,
+    String(dated.items[dateIndex].date));
+
+  await setField("d-date", "8 octobre 2026");
+  await wait(250);
+  await click('[data-act="save"]');
+  await wait(900);
+  const savedNews = JSON.parse(fs.readFileSync(CATALOG, "utf-8"));
+  const savedDated = savedNews.news.items.find((item) => item.title === "Tournoi de robots");
+  check("date enregistrée sur le disque",
+    !!savedDated && savedDated.date === "8 octobre 2026",
+    savedDated && String(savedDated.date));
+
+  // Relecture par le chemin normal de l'outil : publier, puis recharger le
+  // catalogue publié. Une mise en avant composée ici doit survivre aux deux.
+  await js(
+    "(()=>{const s=window.__adminState;" +
+    "s.catalog.highlights=[{label:'Du moment',appIds:[" + JSON.stringify(picks[2]) + "]}];" +
+    "window.__adminRefresh();return 'ok';})()"
+  );
+  await click('[data-tab="application"]');
+  await wait(200);
+  await click('[data-act="publish"]');
+  await wait(1200);
+  const publishedDated = JSON.parse(fs.readFileSync(path.join(SHARE, "apps.json"), "utf-8"));
+  const reread = publishedDated.news.items.find((item) => item.title === "Tournoi de robots");
+  check("date conservée à la publication",
+    !!reread && reread.date === "8 octobre 2026", reread && String(reread.date));
+  check("mise en avant conservée à la publication",
+    Array.isArray(publishedDated.highlights) && publishedDated.highlights.length === 1 &&
+      publishedDated.highlights[0].label === "Du moment",
+    JSON.stringify(publishedDated.highlights));
+
+  await click('[data-act="share-load"]');
+  await wait(1200);
+  const rereadIndex = await js(
+    "(()=>{const s=window.__adminState;return s.catalog.news.items" +
+    ".findIndex(i=>i.title==='Tournoi de robots');})()"
+  );
+  check("date relue dans le catalogue rechargé", rereadIndex >= 0 &&
+    (await js("window.__adminState.catalog.news.items[" + rereadIndex + "].date")) ===
+      "8 octobre 2026");
+  await click('[data-news-index="' + rereadIndex + '"] [data-act="news-select"]');
+  await wait(300);
+  check("date affichée dans le formulaire après relecture",
+    (await js("document.getElementById('d-date').value")) === "8 octobre 2026",
+    await js("document.getElementById('d-date').value"));
+
+  /* ── 17. Silence de la console ─────────────────────────────────────────── */
   check("aucune erreur JavaScript", consoleErrors.length === 0, consoleErrors.join(" | "));
 }
 

@@ -101,6 +101,46 @@ non fiable.
 
 ---
 
+## Informations du département et mise en avant des outils
+
+Trois nouveautés donnent de la voix à l'établissement sur la page d'accueil.
+Tout se pilote depuis le catalogue : **aucun redéploiement n'est nécessaire**
+pour publier une information ou changer une mise en avant.
+
+### Un carrousel d'informations
+
+Le département informatique pousse ses informations — nouvelle salle,
+maintenance, nouveaux outils validés — sous forme de carrousel, en tête de
+l'accueil. Chaque information porte un titre, un texte, et si besoin une image
+et un lien « En savoir plus », ouvert dans le navigateur du poste.
+
+Le carrousel avance seul toutes les sept secondes ; il s'arrête dès que la
+souris s'en approche ou qu'un élément reçoit le focus, et reste immobile si le
+poste demande de réduire les animations. Flèches et pastilles permettent de
+circuler au clavier comme à la souris.
+
+### Les outils mis en avant
+
+Sous le carrousel, l'administrateur compose une ou plusieurs sélections
+(« Le moment », « Le mois ») : les outils choisis apparaissent en grand, avec
+leur visuel, leur description et un accès direct. C'est la vitrine de
+l'établissement, **distincte des favoris personnels** de chacun, qui restent
+affichés plus bas avec les outils récents.
+
+### Des outils qui se montrent
+
+Chaque outil peut recevoir une illustration et jusqu'à quatre captures d'écran.
+Elles s'affichent sur la carte de l'outil dans toutes les vues ; un bouton
+« Aperçu » ouvre la galerie sans quitter l'application.
+
+Les images sont embarquées dans le catalogue en data URI : une seule
+publication suffit, aucun hébergement n'est nécessaire, et l'affichage ne
+dépend pas du réseau. En contrepartie le catalogue grossit : l'outil
+d'administration redimensionne les images à l'import, et la validation écarte
+toute image dépassant 512 Ko ou les captures au-delà de la quatrième.
+
+---
+
 ## Structure du projet
 
 ```
@@ -136,13 +176,15 @@ demande ni Node ni npm :
 
 | Fichier | Usage |
 | --- | --- |
-| `dist-admin\StrasEdu-Administration-2.0.0-setup.exe` | Installation classique (menu Démarrer, raccourci bureau). |
-| `dist-admin\StrasEdu-Administration-2.0.0-portable.exe` | Aucune installation : double-clic. |
+| `dist-admin\StrasEdu-Administration-2.1.1-setup.exe` | Installation classique (menu Démarrer, raccourci bureau). |
+| `dist-admin\StrasEdu-Administration-2.1.1-portable.exe` | Aucune installation : double-clic. |
 
-Onglets *Outils*, *Catégories*, *Application* : on compose le catalogue, on
-choisit les icônes et le logo officiel, puis on publie sur le partage réseau.
-La version est incrémentée automatiquement, et un catalogue invalide est refusé
-en nommant l'outil fautif.
+Onglets *Outils*, *Catégories*, *Mise en avant*, *Département*, *Application* :
+on compose le catalogue, on choisit les icônes, les visuels des outils et le
+logo officiel, on rédige les informations du carrousel et les sélections
+d'outils à mettre en avant, puis on publie sur le partage réseau. La version est
+incrémentée automatiquement, et un catalogue invalide est refusé en nommant
+l'outil fautif.
 
 ```powershell
 npm run build:admin     # fabrique les deux exécutables dans dist-admin/
@@ -268,6 +310,27 @@ les champs nouveaux sont optionnels.
 
   "categories": ["Audio", "Vidéo", "IA", "Fichiers", "PDF", "Services"],
 
+  "news": {                        // carrousel d'informations, optionnel
+    "title": "Informations du département informatique",
+    "subtitle": "Les dernières nouvelles du service",
+    "items": [
+      {
+        "id": "info-salle-b12",    // identifiant stable du lien
+        "title": "La salle B12 fait peau neuve",
+        "text": "Seize postes remplacés, écran interactif et casques neufs.",
+        "image": "data:image/svg+xml;base64,…",  // optionnel
+        "url": "https://…",        // optionnel : lien « En savoir plus »
+        "linkLabel": "Réserver la salle",
+        "date": "8 octobre 2026"   // optionnel, texte libre
+      }
+    ]
+  },
+
+  "highlights": [                  // mises en avant composées, optionnel
+    { "label": "Le moment", "appIds": ["vocaroo", "clipchamp"] },
+    { "label": "Le mois", "appIds": ["podcastle", "edpuzzle"] }
+  ],
+
   "apps": [
     {
       "id": "vocaroo",             // identifiant stable, unique
@@ -279,11 +342,19 @@ les champs nouveaux sont optionnels.
       "meta": "Sans compte",       // information courte
       "keywords": ["enregistrer", "voix", "micro", "oral"],
       "url": "https://vocaroo.com",
-      "type": "web"                // ou "local" avec "path"
+      "type": "web",               // ou "local" avec "path"
+      "image": "data:image/png;base64,…",   // vignette de l'outil
+      "screenshots": ["data:image/png;base64,…"]  // 4 captures au maximum
     }
   ]
 }
 ```
+
+| Champ | Règle appliquée |
+| --- | --- |
+| `news.items` | 12 au maximum. Une information sans titre, sans texte et sans image est écartée. Un `url` non `http(s)` est retiré (l'information reste, sans lien). |
+| `highlights` | 3 groupes au maximum, 12 outils par groupe. Un identifiant inconnu du catalogue est écarté : le rendu ne pointe jamais dans le vide. Le libellé vaut « À la une » à défaut. |
+| `image`, `screenshots` | Data URI d'image (`png`, `jpeg`, `webp`, `svg+xml`) de 512 Ko de texte au maximum. Au-delà de 6 Mo de visuels cumulés, les suivants sont ignorés et le signalent au journal. |
 
 Pour un outil installé sur le poste :
 

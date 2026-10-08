@@ -84,6 +84,19 @@
 
     chevronRight: '<path d="m9.4 5.4 6.6 6.6-6.6 6.6"></path>',
 
+    chevronLeft: '<path d="m14.6 5.4-6.6 6.6 6.6 6.6"></path>',
+
+    /* Informations du département informatique. */
+    bullhorn:
+      '<path d="M4.4 9.8v4.4a1.8 1.8 0 0 0 1.8 1.8h1.2l7.2 4.2V3.8L7.4 8H6.2a1.8 1.8 0 0 0-1.8 1.8z"></path>' +
+      '<path d="M18.4 9.4a4 4 0 0 1 0 5.2"></path>',
+
+    /* Galerie de captures d'écran. */
+    images:
+      '<rect x="3.4" y="4.6" width="14.6" height="11.8" rx="2.4"></rect>' +
+      '<path d="m3.8 13.8 3.6-3.4 2.8 2.6 2.4-2.2 3.4 3.2"></path>' +
+      '<path d="M8.6 20.6h9.6a2.4 2.4 0 0 0 2.4-2.4V8.4"></path>',
+
     arrowUpRight:
       '<path d="M7.2 16.8 16.8 7.2"></path><path d="M8.8 7.2h8v8"></path>',
 

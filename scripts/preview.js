@@ -10,7 +10,7 @@
 
 "use strict";
 
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, session } = require("electron");
 const fs = require("fs");
 const path = require("path");
 
@@ -90,6 +90,24 @@ const SHOTS = [
       "document.dispatchEvent(new KeyboardEvent('keydown',{key:'k',ctrlKey:true,bubbles:true}));" +
       "const p=document.getElementById('palette-input');p.value='pod';" +
       "p.dispatchEvent(new Event('input',{bubbles:true}));})()"
+  },
+  {
+    name: "11-apercu-captures",
+    theme: "light",
+    density: "comfortable",
+    script:
+      "(()=>{document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));" +
+      "document.querySelector('[data-route=\"cat:Audio\"]').click();" +
+      "const b=document.querySelector('.app-shot-btn'); if(b) b.click();})()"
+  },
+  {
+    name: "12-informations-sombre-compact",
+    theme: "dark",
+    density: "compact",
+    script:
+      "(()=>{const d=document.getElementById('dialog');" +
+      "if(d && !d.hasAttribute('hidden')) document.getElementById('dialog-close').click();" +
+      "document.querySelector('[data-route=\"home\"]').click();})()"
   }
 ];
 
@@ -120,12 +138,27 @@ function createWindow(theme, density) {
     }
   });
 
+  // Les erreurs de la page sont collectées pour être signalées avec la capture
+  // correspondante : une capture peut être belle et l'interface cassée.
+  win.straseduErrors = [];
+  win.webContents.on("console-message", (_event, level, message) => {
+    if (level >= 2) win.straseduErrors.push(message);
+  });
+  win.webContents.on("render-process-gone", (_event, details) => {
+    win.straseduErrors.push("processus de rendu interrompu (" + details.reason + ")");
+  });
+
   win.loadFile(path.join(ROOT, "index.html"));
   return win;
 }
 
 async function run() {
   fs.mkdirSync(OUT, { recursive: true });
+
+  // Chromium garde en cache les ressources file://. Sans cette purge, une
+  // modification de styles/app.css ou de renderer/app.js ne se verrait pas
+  // dans les captures : on contrôlerait un rendu périmé.
+  await session.defaultSession.clearCache();
 
   let current = null;
   let key = "";
@@ -149,11 +182,9 @@ async function run() {
       await wait(420);
     }
 
-    const errors = await current.webContents.executeJavaScript(
-      "window.__previewErrors ? window.__previewErrors.join(' | ') : ''",
-      true
-    );
+    const errors = (current.straseduErrors || []).join(" | ");
     if (errors) console.error("  ! erreurs de page : " + errors);
+    if (current.straseduErrors) current.straseduErrors.length = 0;
 
     await capture(current, shot.name);
   }

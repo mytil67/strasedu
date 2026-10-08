@@ -54,6 +54,19 @@ try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 $problems = New-Object System.Collections.Generic.List[string]
 $warnings = New-Object System.Collections.Generic.List[string]
 
+# ─── Plafonds partagés avec l'application ──────────────────────────────────
+# Ces valeurs DOIVENT rester alignées sur les constantes de lib/catalog.js :
+# l'application écarte en silence tout ce qui dépasse, ce script doit donc
+# prévenir l'administrateur avec exactement les mêmes seuils.
+$MAX_NEWS_ITEMS       = 12
+$MAX_HIGHLIGHTS       = 3
+$MAX_HIGHLIGHTS_IDS   = 12
+$MAX_SCREENSHOTS      = 4
+$MAX_IMAGE_CHARS      = 512 * 1024
+$MAX_APP_IMAGES_CHARS = 6 * 1024 * 1024
+# Data URI d'image acceptée : logo, vignette d'outil, bandeau d'information.
+$IMAGE_PATTERN = '^data:image/(png|jpeg|webp|svg\+xml);base64,[A-Za-z0-9+/=\s]+$'
+
 function Write-Head { param([string]$Text) Write-Host ""; Write-Host "=== $Text ===" -ForegroundColor Cyan }
 function Write-Ok   { param([string]$Text) Write-Host "  [OK]   $Text" -ForegroundColor Green }
 function Write-Warn { param([string]$Text) Write-Host "  [ATTN] $Text" -ForegroundColor Yellow }
@@ -63,9 +76,35 @@ function Write-Err  { param([string]$Text) Write-Host "  [ERR]  $Text" -Foregrou
 # Reproduit les règles appliquées par l'application elle-même : tout ce qui
 # est refusé ici serait silencieusement écarté sur les postes.
 #
-# ponytail: duplicata assumé de normalizeCatalog() dans main.js. L'application
+# ponytail: duplicata assumé de normalizeCatalog() dans lib/catalog.js. L'application
 # doit valider ce qu'elle reçoit (frontière de confiance) et ce script doit
 # prévenir avant diffusion ; les deux jeux de règles doivent évoluer ensemble.
+
+# Valide un visuel embarqué (data URI d'image sous le plafond) et renvoie sa
+# longueur en caractères, ou 0 s'il est absent.
+#
+# Un visuel absent ne dit rien : la plupart des outils n'en ont pas. Un visuel
+# présent mais refusé est signalé nommant son emplacement ($Where), parce que
+# l'application l'écarterait sans le dire à l'administrateur.
+function Get-ValidImageChars {
+    param([object]$Value, [string]$Where)
+
+    $raw = if ($Value -is [string]) { ([string]$Value).Trim() } else { "" }
+    if (-not $raw) { return 0 }
+
+    if ($raw.Length -gt $MAX_IMAGE_CHARS) {
+        $ko = [math]::Round($raw.Length / 1KB)
+        $maxKo = [math]::Round($MAX_IMAGE_CHARS / 1KB)
+        $warnings.Add("$Where : image de $ko Ko de data URI (maximum $maxKo Ko) - elle serait ignorée")
+        return 0
+    }
+    if ($raw -notmatch $IMAGE_PATTERN) {
+        $warnings.Add("$Where : image refusée (data URI d'image attendu, ex. data:image/png;base64,...) - elle serait ignorée")
+        return 0
+    }
+    return $raw.Length
+}
+
 function Test-Catalogue {
     param([object]$Json)
 
@@ -83,6 +122,12 @@ function Test-Catalogue {
         if ($categories.ContainsKey($name)) { $warnings.Add("catégorie déclarée deux fois : $name") }
         $categories[$name] = $true
     }
+
+    # Budget global des visuels d'outils (vignettes + captures), en caractères
+    # de data URI : il empêche qu'un catalogue devienne impossible à
+    # distribuer. Contrairement à la taille d'une image seule, un dépassement
+    # n'écarte pas l'outil : seuls les visuels suivants sont abandonnés.
+    $imageBudget = $MAX_APP_IMAGES_CHARS
 
     $ids = @{}
     foreach ($a in @($Json.apps)) {
@@ -114,6 +159,40 @@ function Test-Catalogue {
                 $problems.Add("$id : url refusee (http ou https attendu) - l'outil serait ignore")
             }
         }
+
+        # Visuels de l'outil : une vignette, puis jusqu'à quatre captures
+        # d'écran. Un visuel refusé n'empêche pas la publication : il est
+        # simplement absent du rendu, d'où l'avertissement et non l'erreur.
+        $imageChars = Get-ValidImageChars -Value $a.image -Where "$id (vignette)"
+        if ($imageChars -gt 0) {
+            if ($imageBudget -ge $imageChars) {
+                $imageBudget -= $imageChars
+            } else {
+                $warnings.Add("$id : budget global des visuels atteint - la vignette serait ignorée")
+            }
+        }
+
+        if ($null -ne $a.screenshots) {
+            if ($a.screenshots -isnot [array]) {
+                $warnings.Add("$id : 'screenshots' doit être un tableau - les captures seraient ignorées")
+            } else {
+                $shots = @($a.screenshots)
+                if ($shots.Count -gt $MAX_SCREENSHOTS) {
+                    $warnings.Add("$id : $($shots.Count) captures d'écran pour $MAX_SCREENSHOTS au maximum - les suivantes seraient ignorées")
+                }
+                $shotRank = 0
+                foreach ($shot in $shots) {
+                    $shotRank += 1
+                    $shotChars = Get-ValidImageChars -Value $shot -Where "$id (capture $shotRank)"
+                    if ($shotChars -eq 0) { continue }
+                    if ($imageBudget -lt $shotChars) {
+                        $warnings.Add("$id : budget global des visuels atteint - les captures suivantes seraient ignorées")
+                        break
+                    }
+                    $imageBudget -= $shotChars
+                }
+            }
+        }
     }
 
     if ($Json.categoryMeta) {
@@ -132,6 +211,104 @@ function Test-Catalogue {
         }
     } elseif (@($Json.categories).Count -gt 0) {
         $warnings.Add("aucun 'categoryMeta' : les tuiles de l'accueil n'auront ni icône ni description")
+    }
+
+    # ── Informations du département ('news') ──────────────────────────────
+    # Objet facultatif. Un élément inexploitable est écarté par l'application
+    # sans faire tomber le carrousel : avertissement, jamais erreur bloquante.
+    if ($null -ne $Json.news) {
+        if ($Json.news -is [array]) {
+            $problems.Add("'news' doit être un objet (title, subtitle, items), pas un tableau")
+        } else {
+            if ($null -eq $Json.news.items) {
+                $warnings.Add("'news' sans 'items' : aucune information ne serait affichée")
+            } elseif ($Json.news.items -isnot [array]) {
+                $problems.Add("'news.items' doit être un tableau")
+            } else {
+                $newsItems = @($Json.news.items)
+                if ($newsItems.Count -gt $MAX_NEWS_ITEMS) {
+                    $warnings.Add("news.items : $($newsItems.Count) informations pour $MAX_NEWS_ITEMS au maximum - les suivantes seraient ignorées")
+                }
+                $rank = 0
+                foreach ($item in $newsItems) {
+                    $rank += 1
+                    $where = "news.items[$rank]"
+                    if ($item -isnot [pscustomobject]) {
+                        $warnings.Add("$where : entrée invalide (objet attendu) - elle serait écartée")
+                        continue
+                    }
+
+                    # Un élément sans titre, sans texte et sans image n'a rien à
+                    # afficher : l'application le retire du carrousel.
+                    $title = if ($item.title -is [string]) { $item.title.Trim() } else { "" }
+                    $text = if ($item.text -is [string]) { $item.text.Trim() } else { "" }
+                    $imageChars = Get-ValidImageChars -Value $item.image -Where $where
+                    if (-not $title -and -not $text -and $imageChars -eq 0) {
+                        $warnings.Add("$where : ni titre, ni texte, ni image - l'information serait écartée")
+                    }
+
+                    # Un lien non http(s) est retiré, mais l'information reste :
+                    # le texte et l'image s'affichent quand même.
+                    $url = if ($item.url -is [string]) { $item.url.Trim() } else { "" }
+                    if ($url -and $url -notmatch '^https?://') {
+                        $warnings.Add("$where : url refusée « $url » (http ou https attendu) - le lien serait retiré, l'information resterait")
+                    }
+                }
+            }
+        }
+    }
+
+    # ── Mises en avant ('highlights') ─────────────────────────────────────
+    # Tableau facultatif de groupes « du moment », « du mois ». Les
+    # identifiants inconnus comme les groupes vides sont écartés par
+    # l'application : le rendu ne pointe jamais vers un outil absent.
+    if ($null -ne $Json.highlights) {
+        if ($Json.highlights -isnot [array]) {
+            $warnings.Add("'highlights' doit être un tableau - aucune mise en avant ne serait affichée")
+        } else {
+            $groups = @($Json.highlights)
+            if ($groups.Count -gt $MAX_HIGHLIGHTS) {
+                $warnings.Add("highlights : $($groups.Count) groupes pour $MAX_HIGHLIGHTS au maximum - les suivants seraient ignorés")
+            }
+            $rank = 0
+            foreach ($group in $groups) {
+                $rank += 1
+                $where = "highlights[$rank]"
+                if ($group -isnot [pscustomobject]) {
+                    $warnings.Add("$where : entrée invalide (objet attendu) - le groupe serait écarté")
+                    continue
+                }
+
+                # Pas de 'label' : rien à signaler, le rendu affiche « À la une ».
+                if ($null -eq $group.appIds -or $group.appIds -isnot [array] -or @($group.appIds).Count -eq 0) {
+                    $warnings.Add("$where : 'appIds' absent, vide ou non tableau - le groupe serait écarté")
+                    continue
+                }
+
+                $appIds = @($group.appIds)
+                if ($appIds.Count -gt $MAX_HIGHLIGHTS_IDS) {
+                    $warnings.Add("$where : $($appIds.Count) identifiants pour $MAX_HIGHLIGHTS_IDS au maximum - les suivants seraient ignorés")
+                }
+
+                $seenInGroup = @{}
+                $unknown = New-Object System.Collections.Generic.List[string]
+                foreach ($value in $appIds) {
+                    $appId = [string]$value
+                    if (-not $appId) { continue }
+                    if ($seenInGroup.ContainsKey($appId)) {
+                        $warnings.Add("$where : identifiant répété « $appId » - le doublon serait écarté")
+                    } else {
+                        $seenInGroup[$appId] = $true
+                    }
+                    if (-not $ids.ContainsKey($appId) -and -not $unknown.Contains($appId)) {
+                        $unknown.Add($appId)
+                    }
+                }
+                foreach ($appId in $unknown) {
+                    $warnings.Add("$where : l'outil « $appId » est absent du catalogue - il serait écarté de la mise en avant")
+                }
+            }
+        }
     }
 }
 

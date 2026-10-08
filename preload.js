@@ -19,6 +19,9 @@ contextBridge.exposeInMainWorld("strasedu", {
   /** Ouvre un outil par son identifiant de catalogue. */
   openApp: (appId) => ipcRenderer.invoke("strasedu:open-app", appId),
 
+  /** Ouvre le lien d'une information du département, par son identifiant. */
+  openNews: (itemId) => ipcRenderer.invoke("strasedu:open-news", itemId),
+
   /** Remplace la liste des favoris. */
   setFavorites: (ids) => ipcRenderer.invoke("strasedu:set-favorites", ids),
 

@@ -784,6 +784,30 @@ function registerIpc() {
     }
   });
 
+  // Information du département : le rendu transmet un identifiant, le processus
+  // principal résout le lien dans le catalogue qu'il a lui-même validé.
+  ipcMain.handle("strasedu:open-news", async (_event, itemId) => {
+    let item;
+    try {
+      const news = loadCatalog().news;
+      const items = news && Array.isArray(news.items) ? news.items : [];
+      item = items.find((entry) => entry.id === itemId);
+    } catch (error) {
+      return { ok: false, error: "Catalogue indisponible : " + error.message };
+    }
+    if (!item) return { ok: false, error: "Information inconnue du catalogue." };
+    if (!item.url) return { ok: false, error: "Cette information n'a pas de lien." };
+
+    try {
+      await shell.openExternal(item.url);
+      log("Ouverture du lien de « " + item.title + " »");
+      return { ok: true };
+    } catch (error) {
+      log("Échec d'ouverture du lien : " + error.message);
+      return { ok: false, error: error.message };
+    }
+  });
+
   ipcMain.handle("strasedu:set-favorites", (_event, ids) => {
     const clean = Array.isArray(ids)
       ? ids.filter((id) => typeof id === "string").slice(0, 200)

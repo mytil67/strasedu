@@ -613,6 +613,7 @@
     els.content.innerHTML = html;
     applyCardColors();
     paintRail();
+    initCarousel();
   }
 
   function applyCardColors() {
@@ -659,6 +660,16 @@
       "Voir tout le catalogue</button>" +
       "</div></header>";
 
+    // Les informations du département informatique ouvrent l'accueil : c'est ce
+    // que l'établissement veut faire lire en premier.
+    if (state.news) html += newsCarousel(state.news);
+
+    // Puis les mises en avant composées par l'administration, avant les
+    // rubriques personnelles de l'utilisateur.
+    state.highlights.forEach(function (group) {
+      html += spotlight(group);
+    });
+
     if (recents.length) {
       html +=
         '<section class="section"><div class="section-head">' +
@@ -693,6 +704,282 @@
       "</div></section>";
 
     return html;
+  }
+
+  /* ── Informations du département informatique ──────────────────────────── */
+
+  /**
+   * Carrousel des informations poussées par l'administration.
+   *
+   * Le défilement est horizontal avec accroche : les flèches, les pastilles, la
+   * molette et le clavier fonctionnent sans JavaScript. La rotation automatique
+   * s'arrête au survol, à la prise de focus, et reste désactivée si la machine
+   * demande de réduire les animations.
+   */
+  function newsCarousel(news) {
+    var items = news.items;
+    var many = items.length > 1;
+
+    var nav = many
+      ? '<span class="section-action carousel-nav">' +
+        '<button class="iconbtn iconbtn-sm" type="button" data-slide-prev ' +
+        'aria-label="Information précédente">' + svg("chevronLeft", 16) + "</button>" +
+        '<button class="iconbtn iconbtn-sm" type="button" data-slide-next ' +
+        'aria-label="Information suivante">' + svg("chevronRight", 16) + "</button>" +
+        "</span>"
+      : "";
+
+    var dots = many
+      ? '<div class="carousel-dots" role="group" aria-label="Choisir une information">' +
+        items
+          .map(function (item, index) {
+            return (
+              '<button class="carousel-dot" type="button" data-slide-dot ' +
+              'data-index="' + index + '" aria-label="Information ' + (index + 1) +
+              " sur " + items.length + '" aria-current="' + (index === 0 ? "true" : "false") +
+              '"></button>'
+            );
+          })
+          .join("") +
+        "</div>"
+      : "";
+
+    return (
+      '<section class="section news-section" data-carousel aria-label="' +
+      esc(news.title || "Informations du département informatique") + '">' +
+      '<div class="section-head">' +
+      '<h2 class="section-title"><span class="section-ico">' + svg("bullhorn", 17) + "</span>" +
+      esc(news.title || "Informations du département informatique") + "</h2>" +
+      (news.subtitle ? '<span class="section-count">' + esc(news.subtitle) + "</span>" : "") +
+      nav +
+      "</div>" +
+      '<div class="carousel-track" tabindex="0" aria-live="polite">' +
+      items.map(newsSlide).join("") +
+      "</div>" +
+      dots +
+      "</section>"
+    );
+  }
+
+  function newsSlide(item, index, all) {
+    var media = item.image
+      ? '<div class="news-media"><img alt="" src="' + esc(item.image) + '"></div>'
+      : '<div class="news-media news-media-plain" aria-hidden="true">' + svg("bullhorn", 38) + "</div>";
+
+    return (
+      '<article class="news-slide" role="group" aria-roledescription="information" ' +
+      'aria-label="' + (index + 1) + " sur " + all.length + '">' +
+      media +
+      '<div class="news-body">' +
+      (item.date ? '<span class="news-date">' + esc(item.date) + "</span>" : "") +
+      (item.title ? '<h3 class="news-title">' + esc(item.title) + "</h3>" : "") +
+      (item.text ? '<p class="news-text">' + esc(item.text) + "</p>" : "") +
+      (item.url
+        ? '<button class="btn btn-sm btn-primary news-link" type="button" data-action="news-link" ' +
+          'data-id="' + esc(item.id) + '">' + esc(item.linkLabel || "En savoir plus") +
+          svg("arrowUpRight", 14) + "</button>"
+        : "") +
+      "</div></article>"
+    );
+  }
+
+  /* ── Mises en avant composées par l'administration ─────────────────────── */
+
+  function spotlight(group) {
+    var apps = group.appIds
+      .map(function (id) {
+        return state.byId[id];
+      })
+      .filter(Boolean);
+    if (!apps.length) return "";
+
+    return (
+      '<section class="section"><div class="section-head">' +
+      '<h2 class="section-title"><span class="section-ico">' + svg("star", 17) + "</span>" +
+      esc(group.label) + "</h2>" +
+      '<span class="section-count">' + apps.length +
+      (apps.length > 1 ? " outils mis en avant" : " outil mis en avant") + "</span>" +
+      "</div><div class=\"spot-row\">" +
+      apps.map(spotCard).join("") +
+      "</div></section>"
+    );
+  }
+
+  function spotCard(app) {
+    var favorite = isFavorite(app.id);
+    var label = favorite ? "Retirer des favoris" : "Ajouter aux favoris";
+
+    return (
+      '<article class="spot-card" data-cat="' + esc(app.category) + '" data-action="open" ' +
+      'data-id="' + esc(app.id) + '">' +
+      appVisual(app, "spot-visual") +
+      '<div class="spot-body">' +
+      '<div class="spot-head">' +
+      '<div class="app-name" title="' + esc(app.name) + '">' + esc(app.name) + "</div>" +
+      '<button class="fav" type="button" data-action="fav" data-id="' + esc(app.id) +
+      '" aria-pressed="' + (favorite ? "true" : "false") + '" aria-label="' + label +
+      '" title="' + label + '">' + svg("star", 15) + "</button>" +
+      "</div>" +
+      '<div class="app-eyebrow"><span class="dot"></span><span class="cat">' + esc(app.category) +
+      "</span>" +
+      (app.meta ? '<span class="sep">·</span><span class="trunc">' + esc(app.meta) + "</span>" : "") +
+      "</div>" +
+      (app.description ? '<p class="spot-desc">' + esc(app.description) + "</p>" : "") +
+      '<div class="spot-foot">' +
+      '<button class="btn btn-sm btn-primary" type="button" data-action="open" data-id="' +
+      esc(app.id) + '">' + esc(app.type === "local" ? "Lancer" : "Ouvrir") + "</button>" +
+      "</div></div></article>"
+    );
+  }
+
+  /**
+   * Visuel d'un outil : la vignette fournie par l'administration, sinon un aplat
+   * coloré portant l'icône ou les initiales. Une carte n'est jamais vide.
+   */
+  function appVisual(app, cls) {
+    if (app.image) {
+      return '<div class="' + cls + '"><img alt="" src="' + esc(app.image) + '"></div>';
+    }
+    return (
+      '<div class="' + cls + " " + cls + '-plain"><span class="app-mark">' +
+      appMark(app, 24) + "</span></div>"
+    );
+  }
+
+  /* ── Carrousel : comportement ──────────────────────────────────────────── */
+
+  var carouselTimer = null;
+
+  /**
+   * Anime le carrousel de l'accueil. Appelée après chaque rendu du contenu :
+   * l'ancien minuteur est toujours arrêté, sinon les rendus successifs
+   * empileraient des rotations concurrentes.
+   */
+  function initCarousel() {
+    stopCarousel();
+
+    var root = els.content.querySelector("[data-carousel]");
+    if (!root) return;
+
+    var track = root.querySelector(".carousel-track");
+    var slides = track ? track.querySelectorAll(".news-slide") : [];
+    if (slides.length < 2) return;
+
+    var calm = !!(
+      window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    );
+
+    function currentIndex() {
+      var best = 0;
+      var closest = Infinity;
+      Array.prototype.forEach.call(slides, function (slide, index) {
+        var gap = Math.abs(slide.offsetLeft - track.offsetLeft - track.scrollLeft);
+        if (gap < closest) {
+          closest = gap;
+          best = index;
+        }
+      });
+      return best;
+    }
+
+    function sync() {
+      var index = currentIndex();
+      Array.prototype.forEach.call(root.querySelectorAll("[data-slide-dot]"), function (dot, i) {
+        dot.setAttribute("aria-current", i === index ? "true" : "false");
+      });
+    }
+
+    function go(index) {
+      var target = slides[(index + slides.length) % slides.length];
+      if (!target) return;
+      track.scrollTo({
+        left: target.offsetLeft - track.offsetLeft,
+        behavior: calm ? "auto" : "smooth"
+      });
+    }
+
+    var prev = root.querySelector("[data-slide-prev]");
+    var next = root.querySelector("[data-slide-next]");
+    if (prev) {
+      prev.addEventListener("click", function () {
+        go(currentIndex() - 1);
+      });
+    }
+    if (next) {
+      next.addEventListener("click", function () {
+        go(currentIndex() + 1);
+      });
+    }
+
+    Array.prototype.forEach.call(root.querySelectorAll("[data-slide-dot]"), function (dot) {
+      dot.addEventListener("click", function () {
+        go(Number(dot.getAttribute("data-index")) || 0);
+      });
+    });
+
+    track.addEventListener("scroll", debounce(sync, 140));
+    // La rotation s'interrompt dès que l'utilisateur s'intéresse au carrousel.
+    root.addEventListener("mouseenter", stopCarousel);
+    root.addEventListener("mouseleave", startCarousel);
+    root.addEventListener("focusin", stopCarousel);
+    root.addEventListener("focusout", startCarousel);
+
+    function startCarousel() {
+      if (calm) return;
+      stopCarousel();
+      carouselTimer = window.setInterval(function () {
+        if (document.hidden) return;
+        go(currentIndex() + 1);
+      }, 7000);
+    }
+
+    sync();
+    startCarousel();
+  }
+
+  function stopCarousel() {
+    if (carouselTimer) {
+      window.clearInterval(carouselTimer);
+      carouselTimer = null;
+    }
+  }
+
+  /** Ouvre le lien d'une information du département, résolu par le processus principal. */
+  function openNewsLink(itemId) {
+    if (!bridge) return;
+    bridge.openNews(itemId).then(function (result) {
+      if (result && result.ok === false) {
+        toast("Lien indisponible", result.error || "Vérifiez le catalogue de l'établissement.", "warn");
+      }
+    });
+  }
+
+  /** Affiche les captures d'écran d'un outil, sans quitter l'accueil. */
+  function openPreview(id) {
+    var app = state.byId[id];
+    if (!app || !Array.isArray(app.screenshots) || !app.screenshots.length) return;
+    var cta = app.type === "local" ? "Lancer" : "Ouvrir";
+
+    var body =
+      '<div class="preview-gallery">' +
+      app.screenshots
+        .map(function (src) {
+          return (
+            '<figure class="preview-shot"><img alt="Capture d\'écran de ' +
+            esc(app.name) + '" src="' + esc(src) + '"></figure>'
+          );
+        })
+        .join("") +
+      "</div>" +
+      (app.description ? '<p class="preview-desc">' + esc(app.description) + "</p>" : "");
+
+    showDialog(
+      app.name,
+      body,
+      '<button class="btn" type="button" data-action="close-dialog">Fermer</button>' +
+        '<button class="btn btn-primary" type="button" data-action="open" data-id="' +
+        esc(app.id) + '">' + esc(cta) + "</button>"
+    );
   }
 
   function categoryTile(name) {
@@ -820,10 +1107,12 @@
     var entry = usageOf(app.id);
     var favorite = isFavorite(app.id);
     var cta = app.type === "local" ? "Lancer" : "Ouvrir";
+    var shots = Array.isArray(app.screenshots) ? app.screenshots.length : 0;
 
     return (
-      '<article class="app-card" data-cat="' + esc(app.category) + '" ' +
-      'data-action="open" data-id="' + esc(app.id) + '">' +
+      '<article class="app-card' + (app.image ? " has-visual" : "") + '" data-cat="' +
+      esc(app.category) + '" data-action="open" data-id="' + esc(app.id) + '">' +
+      (app.image ? appVisual(app, "app-visual") : "") +
       '<div class="app-card-head">' +
       '<span class="app-mark">' + appMark(app, 22) + "</span>" +
       '<div class="app-card-title">' +
@@ -844,6 +1133,12 @@
       (entry.count > 1
         ? '<span class="app-usage">ouvert ' + entry.count + " fois</span>"
         : '<span class="app-usage"></span>') +
+      (shots
+        ? '<button class="btn btn-sm btn-subtle app-shot-btn" type="button" data-action="preview" ' +
+          'data-id="' + esc(app.id) + '" title="Voir les captures d\'écran" aria-label="Aperçu de ' +
+          esc(app.name) + ' : ' + shots + (shots > 1 ? " captures" : " capture") + '">' +
+          svg("images", 15) + "<span>" + shots + "</span></button>"
+        : "") +
       '<span class="app-open">' + cta + svg("arrowUpRight", 15) + "</span>" +
       '<button class="btn btn-sm btn-primary" type="button" data-action="open" data-id="' +
       esc(app.id) + '">' + esc(cta) + "</button>" +
@@ -1373,6 +1668,9 @@
     var app = state.byId[id];
     if (!app) return;
 
+    // Lancer un outil referme l'aperçu ou les réglages restés ouverts.
+    closeDialog();
+
     // Mise à jour optimiste : « Récents » réagit immédiatement.
     var entry = usageOf(id);
     state.usage[id] = { count: (entry.count || 0) + 1, last: Date.now() };
@@ -1486,6 +1784,13 @@
       state.byId[app.id] = app;
     });
 
+    // Informations du département informatique et mises en avant composées par
+    // l'administration. Absentes d'un catalogue 1.x : l'accueil s'affiche alors
+    // exactement comme avant.
+    var news = state.catalog.news;
+    state.news = news && Array.isArray(news.items) && news.items.length ? news : null;
+    state.highlights = Array.isArray(state.catalog.highlights) ? state.catalog.highlights : [];
+
     state.favorites = (snapshot.favorites || []).filter(function (id) {
       return state.byId[id];
     });
@@ -1540,6 +1845,12 @@
           break;
         case "open":
           openApp(target.getAttribute("data-id"));
+          break;
+        case "preview":
+          openPreview(target.getAttribute("data-id"));
+          break;
+        case "news-link":
+          openNewsLink(target.getAttribute("data-id"));
           break;
         case "fav":
           toggleFavorite(target.getAttribute("data-id"));
@@ -1625,6 +1936,22 @@
       paletteState.items = buildPalette(els.paletteInput.value);
       paletteState.active = 0;
       renderPalette();
+    });
+
+    // La barre de défilement ne se montre que pendant le défilement : elle
+    // situe la page sans encombrer l'interface au repos.
+    function fadeScrollbar(node) {
+      node.setAttribute("data-scrolling", "true");
+      window.clearTimeout(node.straseduScrollFade);
+      node.straseduScrollFade = window.setTimeout(function () {
+        node.removeAttribute("data-scrolling");
+      }, 900);
+    }
+    els.content.addEventListener("scroll", function () {
+      fadeScrollbar(els.content);
+    });
+    els.railNav.addEventListener("scroll", function () {
+      fadeScrollbar(els.railNav);
     });
 
     document.addEventListener("keydown", onKeyDown);
