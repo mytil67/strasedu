@@ -190,6 +190,23 @@ npm run build:all       # les trois
 
 Les fichiers sont écrits dans `dist/` et `dist-admin/`.
 
+## Publier une version
+
+Les binaires ne sont pas versionnés dans le dépôt : 300 Mo par version
+l'alourdiraient définitivement. Ils sont déposés en **release GitHub**, ce qui
+donne en plus un lien de téléchargement stable pour le service informatique.
+
+```powershell
+npm run build:all
+npm run release         # crée la release du tag v<version> et y dépose les exécutables
+npm run release:dry     # vérifie sans rien envoyer
+```
+
+Le script produit `SHA256SUMS.txt` et le joint à la release : indispensable
+quand les fichiers transitent par des partages réseau. Le jeton est lu dans
+l'aide-mémoire de Git — celui qu'utilise déjà `git push` — et n'est jamais
+affiché ni écrit sur le disque.
+
 > **Première fabrication sur un poste Windows** : electron-builder télécharge
 > un paquet d'outils de signature qui contient des liens symboliques macOS.
 > Windows ne les crée que pour un administrateur ou en mode développeur, sinon

@@ -19,3 +19,6 @@ dist-admin/
 .thumbnail
 .claude/
 *.exe
+
+# Produit par scripts/publish-release.js
+SHA256SUMS.txt

@@ -17,7 +17,9 @@
     "build:portable": "electron-builder --win portable",
     "build:all": "npm run build && npm run build:portable && npm run build:admin",
     "fix-builder-cache": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/fix-builder-cache.ps1",
-    "build:admin": "electron-builder --config electron-builder.admin.json --win"
+    "build:admin": "electron-builder --config electron-builder.admin.json --win",
+    "release": "node scripts/publish-release.js",
+    "release:dry": "node scripts/publish-release.js --dry-run"
   },
   "devDependencies": {
     "electron": "^33.4.11",
