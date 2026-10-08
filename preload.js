@@ -22,6 +22,9 @@ contextBridge.exposeInMainWorld("strasedu", {
   /** Ouvre le lien d'une information du département, par son identifiant. */
   openNews: (itemId) => ipcRenderer.invoke("strasedu:open-news", itemId),
 
+  /** Bascule le plein écran ; sans valeur, inverse l'état courant. */
+  setFullscreen: (value) => ipcRenderer.invoke("strasedu:set-fullscreen", value),
+
   /** Remplace la liste des favoris. */
   setFavorites: (ids) => ipcRenderer.invoke("strasedu:set-favorites", ids),
 

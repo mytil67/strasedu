@@ -34,6 +34,11 @@ const path = require("path");
 const https = require("https");
 const http = require("http");
 
+// La limite de taille du catalogue est partagée avec l'outil d'administration
+// et le validateur : une seule valeur, sinon la publication laisse passer ce
+// que les postes refusent.
+const { MAX_CATALOG_BYTES } = require("./lib/catalog");
+
 /* ─── Trace de démarrage ─────────────────────────────────────────────────── */
 /*
    Écrite avant toute autre chose, donc disponible même si le profil
@@ -86,16 +91,18 @@ trace(
 const APP_ID = "fr.strasedu.app";
 const APP_NAME = "StrasEdu";
 
-const MAX_CATALOG_BYTES = 2 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 12000;
 const MAX_USAGE_ENTRIES = 200;
 const DEFAULT_CHECK_INTERVAL_MIN = 30;
 
 /* ─── Configuration externe ──────────────────────────────────────────────── */
 /*
-   Ordre de priorité pour l'URL du catalogue distant :
-     1. le fichier strasedu.config.json livré à côté de l'application ;
-     2. la variable d'environnement STRASEDU_REMOTE_URL (déploiement par GPO).
+   Deux sources possibles pour l'URL du catalogue distant, et la variable
+   d'environnement l'emporte : elle permet de reprendre l'adresse sur tout un
+   parc par GPO, sans toucher au disque des postes. À défaut, le premier
+   strasedu.config.json trouvé est lu — celui du dossier resources de
+   l'installation, puis celui du dossier de l'application.
+   Détail dans docs/DEPLOIEMENT.md.
 */
 function readDeployConfig() {
   const candidates = [
@@ -259,6 +266,9 @@ const DEFAULT_PREFS = {
   density: "comfortable",
   mica: true,
   rail: "expanded",
+  // Démarrage en plein écran : un lanceur occupe l'écran d'un poste de classe.
+  // F11 bascule à tout moment, sans passer par les réglages.
+  fullscreen: false,
   windowBounds: null
 };
 
@@ -541,6 +551,10 @@ function capabilities() {
     version: app.getVersion(),
     catalogPath: userFile("apps.json"),
     remoteConfigured: Boolean(REMOTE_APPS_URL),
+    // Affichée dans les réglages : sans elle, un poste qui ne se met pas à jour
+    // ne laisse rien voir d'autre que « aucune source distante configurée ».
+    remoteSource: REMOTE_APPS_URL,
+    fullscreen: Boolean(mainWindow && !mainWindow.isDestroyed() && mainWindow.isFullScreen()),
     micaSupported: isWindows11()
   };
 }
@@ -604,7 +618,11 @@ function createWindow() {
 
     mainWindow.show();
     trace("fenêtre affichée (" + origine + ")");
-    if (bounds.maximized) mainWindow.maximize();
+    if (bounds.maximized) {
+      mainWindow.maximize();
+    } else if (prefs.fullscreen === true) {
+      mainWindow.setFullScreen(true);
+    }
   };
 
   mainWindow.once("ready-to-show", () => revealWindow("ready-to-show"));
@@ -808,6 +826,13 @@ function registerIpc() {
     }
   });
 
+  ipcMain.handle("strasedu:set-fullscreen", (_event, value) => {
+    if (!mainWindow || mainWindow.isDestroyed()) return { fullscreen: false };
+    const wanted = typeof value === "boolean" ? value : !mainWindow.isFullScreen();
+    mainWindow.setFullScreen(wanted);
+    return { fullscreen: wanted };
+  });
+
   ipcMain.handle("strasedu:set-favorites", (_event, ids) => {
     const clean = Array.isArray(ids)
       ? ids.filter((id) => typeof id === "string").slice(0, 200)
@@ -827,6 +852,7 @@ function registerIpc() {
       }
       if (patch.rail === "expanded" || patch.rail === "compact") allowed.rail = patch.rail;
       if (typeof patch.mica === "boolean") allowed.mica = patch.mica;
+      if (typeof patch.fullscreen === "boolean") allowed.fullscreen = patch.fullscreen;
     }
     const next = savePrefs(allowed);
     if (allowed.theme) nativeTheme.themeSource = allowed.theme;

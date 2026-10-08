@@ -1141,6 +1141,9 @@
 
     var v = state.validation;
     els.stState.setAttribute("data-state", v.ok ? "ok" : "warn");
+    // Le détail au survol : « 2 avertissement(s) » n'apprend rien à lui seul.
+    var details = (v.ok ? v.warnings : v.problems) || [];
+    els.stState.title = details.join("\n");
     if (v.ok) {
       els.stState.textContent = v.warnings.length
         ? v.warnings.length + " avertissement(s)"

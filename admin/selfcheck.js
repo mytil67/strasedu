@@ -14,6 +14,8 @@
        date, refus d'une adresse de lien qui n'est pas http(s) ;
      • définir le logo officiel ;
      • enregistrer, puis publier sur le partage avec incrément de version ;
+     • peser le catalogue : avertissement avant l'enregistrement, refus de
+       publication avant la limite au-delà de laquelle les postes l'écartent ;
      • refuser un catalogue invalide en nommant l'outil fautif.
 
    Écrit aussi des captures d'écran dans .preview/admin/.
@@ -986,7 +988,185 @@ async function run(win) {
     (await js("document.getElementById('d-date').value")) === "8 octobre 2026",
     await js("document.getElementById('d-date').value"));
 
-  /* ── 17. Silence de la console ─────────────────────────────────────────── */
+  /* ── 17. Poids du catalogue : avertissement, puis refus de publication ─── */
+  step("poids du catalogue");
+  // Les postes refusent le catalogue ENTIER au-delà de MAX_CATALOG_BYTES : le
+  // budget des visuels doit donc rester sous cette limite, et l'administrateur
+  // doit être averti AVANT de diffuser un fichier que personne ne reprendrait.
+  const { MAX_CATALOG_BYTES } = require("../lib/catalog");
+  // Même seuil que MAX_PUBLISH_BYTES dans admin/main.js : la constante n'y est
+  // pas exportée, on la recalcule ici pour viser franchement au-dessus.
+  const publishLimitBytes = MAX_CATALOG_BYTES - 128 * 1024;
+  // Même mise en forme que writeCatalogFile() : indentation de deux espaces, en
+  // octets UTF-8, plus le saut de ligne final. Les seuils s'appliquent à cette
+  // sérialisation-là, pas à l'objet en mémoire.
+  const catalogBytes = () =>
+    js(
+      "(()=>{const c=window.__adminState.catalog;" +
+      "return new TextEncoder().encode(JSON.stringify(c,null,2)).length+" +
+      os.EOL.length + ";})()"
+    );
+
+  // Sous les seuils, rien ne doit changer : c'est le point de comparaison de
+  // tout ce qui suit.
+  const normalBytes = await catalogBytes();
+  const normalCheck = await js(
+    "window.admin.validate(window.__adminState.catalog).then(" +
+    "r=>({ok:r.ok,warnings:r.warnings,problems:r.problems}))"
+  );
+  check("catalogue normal valide", !!normalCheck && normalCheck.ok === true,
+    JSON.stringify(normalCheck && normalCheck.problems));
+  check("catalogue normal : aucun avertissement de poids",
+    !!normalCheck && (normalCheck.warnings || []).every((w) => !/pèse/.test(w)),
+    JSON.stringify(normalCheck && normalCheck.warnings));
+
+  // Le catalogue en mémoire est gonflé par un visuel factice, comme le ferait
+  // une vignette trop lourde. Le plafond d'un visuel le fait écarter des
+  // images — l'outil reste valide — mais le fichier sérialisé, lui, dépasse
+  // largement les deux seuils : c'est bien la taille qui est éprouvée ici, pas
+  // la validité des champs. La vignette déjà posée est mémorisée pour être
+  // remise en place au nettoyage.
+  const FAKE_PREFIX = "data:image/png;base64,";
+  const fakeImageChars = MAX_CATALOG_BYTES + 256 * 1024;
+  const savedImage = await js(
+    "(()=>{const s=window.__adminState;const a=s.catalog.apps.find(x=>x.id===s.appId);" +
+    "return a&&typeof a.image==='string'?a.image:null;})()"
+  );
+  const heavyApp = await js(
+    "(()=>{const s=window.__adminState;const a=s.catalog.apps.find(x=>x.id===s.appId);" +
+    "if(!a)return null;" +
+    "a.image=" + JSON.stringify(FAKE_PREFIX) + "+'A'.repeat(" + fakeImageChars + ");" +
+    "window.__adminRefresh();return a.id;})()"
+  );
+  const heavyBytes = await catalogBytes();
+  // Tracé dans le journal : le poids observé est la preuve chiffrée du contrôle.
+  console.log("    poids gonflé : " + Math.round(heavyBytes / 1024) + " Ko (seuil de publication " +
+    Math.round(publishLimitBytes / 1024) + " Ko, avant gonflage " +
+    Math.round(normalBytes / 1024) + " Ko)");
+  check("catalogue gonflé au-delà du seuil de publication",
+    !!heavyApp && heavyBytes > publishLimitBytes,
+    heavyApp + " — " + heavyBytes + " octets (seuil de publication " +
+      publishLimitBytes + ", avant gonflage " + normalBytes + ")");
+
+  const heavyCheck = await js(
+    "window.admin.validate(window.__adminState.catalog).then(" +
+    "r=>({ok:r.ok,warnings:r.warnings,problems:r.problems}))"
+  );
+  // Un enregistrement local reste possible : perdre le travail en cours serait
+  // pire que le mal, seul le poids est signalé.
+  check("catalogue trop lourd encore acceptable en local",
+    !!heavyCheck && heavyCheck.ok === true,
+    JSON.stringify(heavyCheck && heavyCheck.problems));
+  const heavyWarnings = (heavyCheck && heavyCheck.warnings) || [];
+  check("avertissement de poids produit",
+    heavyWarnings.some((w) => /pèse/.test(w) && /Ko/.test(w)),
+    JSON.stringify(heavyWarnings));
+
+  // La pastille d'état ne dit que « 1 avertissement(s) » : le détail doit être
+  // lisible au survol. renderStatus() n'est rappelé qu'après une validation, et
+  // le rafraîchissement seul ne recalcule pas l'état : on redemande donc la
+  // vérification par le chemin normal du formulaire — une saisie identique
+  // déclenche la vérification différée — avant de relire la pastille.
+  await setField("e-version", await js("window.__adminState.catalog.version"));
+  await wait(900);
+  const heavyTitle = await js("document.getElementById('st-state').getAttribute('title')");
+  console.log("    pastille d'état : " + JSON.stringify(
+    String(heavyTitle).split("\n").find((line) => /pèse/.test(line)) || ""));
+  check("détail du poids dans le titre de la pastille d'état",
+    /pèse/.test(String(heavyTitle)) && /Ko/.test(String(heavyTitle)),
+    String(heavyTitle).slice(0, 160));
+
+  // Le partage d'essai doit rester intact : publier un catalogue que les postes
+  // refuseraient ferait croire à une diffusion qui n'a pas eu lieu.
+  const shareFile = path.join(SHARE, "apps.json");
+  const beforeShare = fs.readFileSync(shareFile, "utf-8");
+  const beforeShareStat = fs.statSync(shareFile);
+  const beforeShareCatalog = JSON.parse(beforeShare);
+
+  const refusedHeavy = await js(
+    "window.admin.publish(window.__adminState.catalog).then(" +
+    "r=>({ok:r.ok,problems:r.problems,warnings:r.warnings}))"
+  );
+  check("publication d'un catalogue trop lourd refusée",
+    !!refusedHeavy && refusedHeavy.ok === false,
+    JSON.stringify(refusedHeavy && refusedHeavy.problems));
+  // Le message doit dire pourquoi, et nommer la limite des postes — en Ko comme
+  // dans la constante, ou en Mo : sans elle, l'administrateur ne sait pas
+  // jusqu'où alléger.
+  const limitPattern = new RegExp(
+    "(" + Math.round(MAX_CATALOG_BYTES / 1024) + "\\s*Ko|" +
+    MAX_CATALOG_BYTES / (1024 * 1024) + "\\s*Mo)"
+  );
+  check("refus nommant la limite des postes",
+    !!refusedHeavy && (refusedHeavy.problems || []).some(
+      (p) => /pèse/.test(p) && limitPattern.test(p)),
+    JSON.stringify(refusedHeavy && refusedHeavy.problems));
+
+  const afterShare = fs.readFileSync(shareFile, "utf-8");
+  const afterShareStat = fs.statSync(shareFile);
+  const afterShareCatalog = JSON.parse(afterShare);
+  check("fichier du partage non réécrit après refus", afterShare === beforeShare);
+  check("version du partage inchangée",
+    afterShareCatalog.version === beforeShareCatalog.version,
+    beforeShareCatalog.version + " -> " + afterShareCatalog.version);
+  check("date de mise à jour du partage inchangée",
+    afterShareCatalog.lastUpdated === beforeShareCatalog.lastUpdated,
+    beforeShareCatalog.lastUpdated + " -> " + afterShareCatalog.lastUpdated);
+  check("fichier du partage non modifié sur le disque",
+    afterShareStat.mtimeMs === beforeShareStat.mtimeMs,
+    new Date(beforeShareStat.mtimeMs).toISOString() + " -> " +
+      new Date(afterShareStat.mtimeMs).toISOString());
+  check("aucun fichier temporaire sur le partage après refus",
+    !fs.existsSync(shareFile + ".tmp"));
+
+  // Nettoyage : le visuel factice disparaît, la vignette mémorisée est remise
+  // en place, et les contrôles suivants retrouvent le catalogue normal.
+  await js(
+    "(()=>{const s=window.__adminState;const a=s.catalog.apps.find(x=>x.id===s.appId);" +
+    (savedImage ? "a.image=" + JSON.stringify(savedImage) + ";" : "delete a.image;") +
+    "window.__adminRefresh();return 'ok';})()"
+  );
+  const cleanedBytes = await catalogBytes();
+  const stateImage = await js(
+    "(()=>{const s=window.__adminState;const a=s.catalog.apps.find(x=>x.id===s.appId);" +
+    "const len=a&&typeof a.image==='string'?a.image.length:0;" +
+    "return {len:len,fake:len===" + (FAKE_PREFIX.length + fakeImageChars) + "};})()"
+  );
+  check("visuel factice retiré de l'outil", !!stateImage && stateImage.fake === false,
+    JSON.stringify(stateImage));
+  check("poids de l'état revenu au niveau initial", cleanedBytes === normalBytes,
+    cleanedBytes + " octets (avant gonflage : " + normalBytes + ")");
+
+  const cleanCheck = await js(
+    "window.admin.validate(window.__adminState.catalog).then(" +
+    "r=>({ok:r.ok,warnings:r.warnings,problems:r.problems}))"
+  );
+  check("catalogue normal retrouvé : valide",
+    !!cleanCheck && cleanCheck.ok === true,
+    JSON.stringify(cleanCheck && cleanCheck.problems));
+  check("catalogue normal retrouvé : aucun avertissement de poids",
+    !!cleanCheck && (cleanCheck.warnings || []).every((w) => !/pèse/.test(w)),
+    JSON.stringify(cleanCheck && cleanCheck.warnings));
+
+  // La pastille ne doit pas rester sur l'avertissement : l'état a repris son
+  // poids normal.
+  await setField("e-version", await js("window.__adminState.catalog.version"));
+  await wait(900);
+  const cleanTitle = await js("document.getElementById('st-state').getAttribute('title')");
+  check("titre de la pastille d'état sans avertissement de poids",
+    !/pèse/.test(String(cleanTitle)), String(cleanTitle).slice(0, 160));
+
+  // Et la publication doit fonctionner comme avant : le refus ne visait que le
+  // poids, il ne laisse aucune trace dans l'outil.
+  const afterCleanup = await js(
+    "window.admin.publish(window.__adminState.catalog).then(" +
+    "r=>({ok:r.ok,version:r.version,problems:r.problems}))"
+  );
+  check("publication de nouveau acceptée sous les seuils",
+    !!afterCleanup && afterCleanup.ok === true,
+    JSON.stringify(afterCleanup && afterCleanup.problems));
+
+  /* ── 18. Silence de la console ─────────────────────────────────────────── */
   check("aucune erreur JavaScript", consoleErrors.length === 0, consoleErrors.join(" | "));
 }
 

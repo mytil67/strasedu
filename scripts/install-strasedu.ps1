@@ -16,6 +16,9 @@
 #
 # Exemples :
 #   .\install-strasedu.ps1 -Source "\\serveur\partage\StrasEdu" `
+#                         -RemoteAppsUrl "\\serveur\partage\StrasEdu\apps.json"
+#
+#   .\install-strasedu.ps1 -Source "\\serveur\partage\StrasEdu" `
 #                         -RemoteAppsUrl "https://…/apps.json"
 #
 #   .\install-strasedu.ps1 -Source "\\serveur\partage\StrasEdu" -CheckOnly
@@ -35,7 +38,8 @@ param(
     # Installer pour tous les utilisateurs (nécessite une élévation).
     [switch]$AllUsers,
 
-    # URL https du catalogue mis à jour par l'établissement.
+    # Adresse du catalogue mis à jour par l'établissement : URL http(s),
+    # partage réseau (\\serveur\StrasEdu\apps.json) ou chemin local.
     [string]$RemoteAppsUrl,
 
     # Racines autorisées pour les outils de type « local ».
@@ -258,9 +262,13 @@ function Write-DeployConfig {
 
     $config = [ordered]@{}
     if ($RemoteAppsUrl) {
-        if ($RemoteAppsUrl -notmatch '^https?://') {
-            Write-Log "URL de catalogue invalide (http(s) attendu) : $RemoteAppsUrl" "ERROR"
-            throw "URL invalide"
+        # Trois formes acceptées : URL http(s), partage réseau (\\serveur\...)
+        # ou chemin local (D:\...). L'application sait lire les trois ; n'accepter
+        # que http(s) obligeait à écrire la configuration à la main sur chaque
+        # poste, alors que le partage réseau est l'hébergement recommandé.
+        if ($RemoteAppsUrl -notmatch '^(https?://|\\\\|//|[a-zA-Z]:[\\/])') {
+            Write-Log "Adresse de catalogue invalide (http(s), partage réseau ou chemin local attendu) : $RemoteAppsUrl" "ERROR"
+            throw "Adresse invalide"
         }
         $config.remoteAppsUrl = $RemoteAppsUrl
         $config.checkIntervalMinutes = 30

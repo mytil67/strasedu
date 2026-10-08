@@ -32,7 +32,8 @@ const snapshot = {
     theme,
     density: process.env.PREVIEW_DENSITY === "compact" ? "compact" : "comfortable",
     mica: false,
-    rail: "expanded"
+    rail: "expanded",
+    fullscreen: false
   },
   favorites: ["podcastle", "peertube", "lechat", "pdfxchange"],
   usage,
@@ -45,6 +46,8 @@ const snapshot = {
     version: "2.0.0",
     catalogPath: "C:\\Users\\C.Marchand\\AppData\\Roaming\\StrasEdu\\apps.json",
     remoteConfigured: true,
+    remoteSource: "\\\\serveur\\partage\\StrasEdu\\apps.json",
+    fullscreen: false,
     micaSupported: true
   },
   sync: { state: "ok", text: "Catalogue à jour (v2.0.0)", lastChecked: now }
@@ -54,6 +57,7 @@ contextBridge.exposeInMainWorld("strasedu", {
   getSnapshot: async () => JSON.parse(JSON.stringify(snapshot)),
   openApp: async () => ({ ok: true }),
   openNews: async () => ({ ok: true }),
+  setFullscreen: async () => ({ fullscreen: false }),
   setFavorites: async (ids) => ids,
   setPrefs: async (prefs) => Object.assign(snapshot.prefs, prefs),
   setTheme: async (value) => {

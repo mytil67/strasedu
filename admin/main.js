@@ -21,8 +21,17 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const { normalizeCatalog, asText, safeLogo, safeImage, MAX_LOGO_CHARS, MAX_IMAGE_CHARS } =
-  require("../lib/catalog");
+const {
+  normalizeCatalog,
+  asText,
+  safeLogo,
+  safeImage,
+  MAX_LOGO_CHARS,
+  MAX_IMAGE_CHARS,
+  MAX_CATALOG_BYTES,
+  MAX_PUBLISH_BYTES,
+  WARN_CATALOG_BYTES
+} = require("../lib/catalog");
 
 const APP_NAME = "StrasEdu Administration";
 const PROJECT_DIR = path.resolve(__dirname, "..");
@@ -137,6 +146,27 @@ function writeCatalogFile(filePath, catalog) {
   return filePath;
 }
 
+/**
+ * Poids du catalogue tel qu'il sera écrit — même mise en forme que
+ * writeCatalogFile, pour que la mesure corresponde au fichier publié.
+ */
+function catalogBytes(catalog) {
+  try {
+    return Buffer.byteLength(JSON.stringify(catalog, null, 2) + os.EOL, "utf-8");
+  } catch {
+    return 0;
+  }
+}
+
+/** Message commun aux deux seuils : il nomme la limite et la conséquence. */
+function tooHeavyMessage(bytes) {
+  return (
+    "Le catalogue pèse " + Math.round(bytes / 1024) + " Ko ; au-delà de " +
+    Math.round(MAX_CATALOG_BYTES / 1024) +
+    " Ko les postes le refusent en entier. Allégez les visuels (Onglet Outils et Département)."
+  );
+}
+
 /* ─── Validation avant enregistrement ou publication ─────────────────────── */
 
 /**
@@ -207,6 +237,11 @@ function validateCatalog(catalog) {
       "Le logo dépasse " + Math.round(MAX_LOGO_CHARS / 1024) + " Ko ou n'est pas une image acceptée."
     );
   }
+
+  // Poids du fichier : avertissement ici, refus à la publication. Un
+  // enregistrement local reste possible — on ne perd pas le travail en cours.
+  const bytes = catalogBytes(catalog);
+  if (bytes > WARN_CATALOG_BYTES) warnings.push(tooHeavyMessage(bytes));
 
   return { ok: problems.length === 0, problems, badIds, warnings };
 }
@@ -394,6 +429,18 @@ function registerIpc() {
     const check = validateCatalog(catalog);
     if (!check.ok) {
       return { ok: false, problems: check.problems, badIds: check.badIds, warnings: check.warnings };
+    }
+
+    // Publier un catalogue trop lourd ne se verrait nulle part : les postes
+    // l'écarteraient en silence et l'administrateur croirait avoir diffusé.
+    const bytes = catalogBytes(catalog);
+    if (bytes > MAX_PUBLISH_BYTES) {
+      return {
+        ok: false,
+        problems: [tooHeavyMessage(bytes)],
+        badIds: check.badIds,
+        warnings: check.warnings
+      };
     }
 
     const share = readPrefs().sharePath;

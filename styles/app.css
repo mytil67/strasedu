@@ -608,16 +608,22 @@ svg {
   scroll-behavior: smooth;
 }
 
-/* L'application s'ouvre sans ascenseur à droite : la barre reste invisible au
-   repos et n'apparaît que pendant le défilement, puis s'efface.
-   Ne JAMAIS la révéler au survol : la souris repose presque toujours sur la
-   zone de contenu, la barre serait donc visible en permanence — exactement ce
-   que l'application doit éviter. */
+/* Barre de défilement : discrète, mais TOUJOURS visible dès que le contenu
+   dépasse. L'avoir rendue invisible était une fausse économie : plus rien
+   n'indiquait qu'il y avait de la suite, et surtout on ne pouvait plus faire
+   glisser le défilement à la souris. Le pouce reste léger au repos, et
+   s'assombrit quand le pointeur est dessus — signe qu'on peut l'attraper — ou
+   pendant le défilement.
+   Ne pas le révéler au survol de la zone de contenu : la souris y repose
+   presque toujours, il serait alors visible en permanence, à son contraste
+   maximal. */
 .content::-webkit-scrollbar-thumb,
 .rail-scroll::-webkit-scrollbar-thumb {
-  background-color: transparent;
+  background-color: color-mix(in srgb, var(--scroll-thumb) 62%, transparent);
 }
 
+.content::-webkit-scrollbar-thumb:hover,
+.rail-scroll::-webkit-scrollbar-thumb:hover,
 .content[data-scrolling="true"]::-webkit-scrollbar-thumb,
 .rail-scroll[data-scrolling="true"]::-webkit-scrollbar-thumb {
   background-color: var(--scroll-thumb);

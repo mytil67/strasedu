@@ -59,11 +59,16 @@ raccourcis et l'entrée de désinstallation. Aucun assistant, aucune écriture d
 registre pendant la copie, aucun droit administrateur en mode utilisateur.
 
 ```powershell
-# Première installation sur un poste
+# Première installation sur un poste, avec le catalogue sur un partage réseau
+.\install-strasedu.ps1 -Source "\\serveur\partage\StrasEdu" `
+                      -RemoteAppsUrl "\\serveur\partage\StrasEdu\apps.json"
+
+# La même chose avec un catalogue servi en https
 .\install-strasedu.ps1 -Source "\\serveur\partage\StrasEdu" `
                       -RemoteAppsUrl "https://…/apps.json"
 
 # Mise à jour : la même commande. Elle ne copie que si la version a changé.
+# Le fichier strasedu.config.json déjà en place n'est jamais écrasé.
 .\install-strasedu.ps1 -Source "\\serveur\partage\StrasEdu"
 
 # Pour tous les utilisateurs du poste (élévation requise)
@@ -216,7 +221,7 @@ Créez `strasedu.config.json` **à côté de l'exécutable**, dans
 
 | Clé | Rôle |
 | --- | --- |
-| `remoteAppsUrl` | URL `https` du catalogue. Laissez vide pour un fonctionnement hors ligne. |
+| `remoteAppsUrl` | Adresse du catalogue : partage réseau (`\\serveur\StrasEdu\apps.json`), chemin local (`C:\…`), ou URL `https`. Laissez vide pour un fonctionnement hors ligne. |
 | `checkIntervalMinutes` | Fréquence de vérification, 30 par défaut. |
 | `allowedLocalRoots` | *(optionnel)* Restreint les outils `type: "local"` à ces arborescences. Si la clé est absente, tout chemin absolu en `.exe` ou `.lnk` existant est accepté. |
 
@@ -299,9 +304,12 @@ jour ne copie rien : l'opération prend une seconde.
 ```powershell
 \\serveur\netlogon\StrasEdu\install-strasedu.ps1 `
     -Source "\\serveur\partage\StrasEdu" `
-    -RemoteAppsUrl "https://…/apps.json" `
+    -RemoteAppsUrl "\\serveur\partage\StrasEdu\apps.json" `
     -AllUsers -Quiet
 ```
+
+`-RemoteAppsUrl` accepte les trois formes que l'application sait lire : partage
+réseau (`\\serveur\…`), chemin local (`D:\…`) ou URL `http(s)`.
 
 Le script est idempotent : il peut être exécuté à chaque démarrage sans risque.
 

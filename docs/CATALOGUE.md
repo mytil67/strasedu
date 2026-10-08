@@ -60,15 +60,22 @@ réinstallation, les postes suivent à la prochaine vérification.
 | --- | --- |
 | **Informations** (carrousel) | 12 au maximum. Une information sans titre, sans texte et sans image est écartée. Le lien doit être en `http` ou `https` : toute autre adresse est refusée à la saisie, et retirée à la validation si elle vient d'ailleurs. |
 | **Mises en avant** | 3 sélections au maximum, 12 outils par sélection. Un outil retiré du catalogue disparaît aussi de la sélection, sans erreur. |
-| **Visuels d'outils** | Une illustration et jusqu'à quatre captures d'écran par outil. Les images sont intégrées au catalogue : l'outil les redimensionne à l'import (PNG, puis JPEG si le poids dépasse le plafond). Une image au-delà de 512 Ko de texte est écartée à la validation. |
+| **Visuels d'outils** | Une illustration et jusqu'à quatre captures d'écran par outil. Les images sont intégrées au catalogue : l'outil les redimensionne à l'import et choisit le format le plus léger (PNG pour une capture d'interface, JPEG pour une photo). Une image au-delà de 192 Ko de texte est écartée à la validation. |
 
 > **Poids du catalogue.** Les visuels sont embarqués : c'est ce qui permet une
 > seule publication, sans hébergement d'images, et un affichage qui ne dépend
 > pas du réseau. En contrepartie, chaque image alourdit `apps.json` — que
 > 2000 postes relisent. Restez sobre : une illustration par outil suffit
 > largement, et les captures d'écran sont surtout utiles aux outils peu connus.
-> Au-delà de 6 Mo de visuels cumulés, la validation ignore les images
-> suivantes et le signale dans le journal de l'application.
+>
+> Deux seuils, alignés sur ce que les postes acceptent :
+>
+> | Seuil | Ce qui se passe |
+> | --- | --- |
+> | **1,5 Mo** de visuels cumulés | Les images suivantes sont ignorées, et le journal de l'application nomme les outils concernés. En pratique, à 192 Ko par image au plus, un catalogue peut illustrer **une vingtaine d'outils** ; les vignettes réellement produites pèsent plutôt 40 à 80 Ko, ce qui laisse de la place. |
+> | **1,6 Mo** de fichier | Avertissement, dans l'outil d'administration (survolez la pastille d'état) comme dans `update-catalog.ps1`. Enregistrer reste possible. |
+> | **1,875 Mo** de fichier | **Publication refusée**, par l'outil d'administration comme par `update-catalog.ps1` : mieux vaut s'arrêter là que frôler la limite des postes. |
+> | **2 Mo** de fichier | Les postes **refusent le catalogue entier** : plus rien ne se met à jour sur aucun poste. |
 
 ### Publier
 
@@ -235,7 +242,12 @@ Le script de déploiement écrit ce fichier pour vous :
 ## 5. Vérifier que la mise à jour est passée
 
 **Sur un poste :** la barre d'état, en bas, indique l'état de synchronisation.
-*Réglages → Catalogue* affiche la version, le nombre d'outils et la date.
+*Réglages → Catalogue* affiche la version, le nombre d'outils et la date,
+et *Réglages → Source du catalogue* affiche **l'adresse distante réellement
+configurée** avec la date de la dernière vérification. C'est le premier endroit
+à regarder quand rien ne se met à jour : si cette ligne annonce « aucune source
+distante », le fichier `strasedu.config.json` n'est pas lu — il doit se trouver
+dans le sous-dossier `resources` de l'installation, pas à côté de l'exécutable.
 
 **En masse :** le journal applicatif de chaque poste est dans
 `%APPDATA%\StrasEdu\logs\strasedu.log` :
@@ -283,7 +295,8 @@ automatiquement.
 | `catalogue distant : absent` dans la trace | `strasedu.config.json` mal placé (il va dans `resources\`). |
 | Les tuiles d'accueil sont ternes | `categoryMeta` incomplet : icône, couleur et description par catégorie. |
 | Une information du carrousel n'a pas de lien | Son `url` n'était pas en `http` ou `https` : elle est publiée sans lien. |
-| Un visuel n'apparaît pas sur les postes | Image au-delà de 512 Ko de texte, ou budget de 6 Mo de visuels atteint. Le journal de l'application (`%APPDATA%\StrasEdu\logs\strasedu.log`) nomme l'outil concerné. |
+| Un visuel n'apparaît pas sur les postes | Image au-delà de 192 Ko de texte, ou budget de 1,5 Mo de visuels atteint. Le journal de l'application (`%APPDATA%\StrasEdu\logs\strasedu.log`) nomme l'outil concerné. |
+| Rien ne se met plus à jour, et le catalogue pèse plus de 2 Mo | Les postes refusent le catalogue **entier**. Allégez les visuels, puis republiez avec une version supérieure. |
 | Une mise en avant est incomplète | Un des outils choisis n'existe plus dans le catalogue : il est écarté silencieusement. |
 | Un outil installé ne se lance pas | `path` inexistant sur ce poste : *« Le logiciel n'est pas installé sur ce poste »*. |
 

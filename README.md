@@ -354,7 +354,13 @@ les champs nouveaux sont optionnels.
 | --- | --- |
 | `news.items` | 12 au maximum. Une information sans titre, sans texte et sans image est écartée. Un `url` non `http(s)` est retiré (l'information reste, sans lien). |
 | `highlights` | 3 groupes au maximum, 12 outils par groupe. Un identifiant inconnu du catalogue est écarté : le rendu ne pointe jamais dans le vide. Le libellé vaut « À la une » à défaut. |
-| `image`, `screenshots` | Data URI d'image (`png`, `jpeg`, `webp`, `svg+xml`) de 512 Ko de texte au maximum. Au-delà de 6 Mo de visuels cumulés, les suivants sont ignorés et le signalent au journal. |
+| `image`, `screenshots` | Data URI d'image (`png`, `jpeg`, `webp`, `svg+xml`) de 192 Ko de texte au maximum par image, et **1,5 Mo de visuels cumulés** pour tout le catalogue. Au-delà, les visuels suivants sont ignorés et le signalent au journal. |
+
+> **Limite de poids.** Un poste refuse **le catalogue entier** au-delà de 2 Mo :
+> ni nouvel outil, ni information, ni visuel. L'outil d'administration comme
+> `scripts/update-catalog.ps1` avertissent au-delà de 1,6 Mo et **refusent de
+> publier** au-delà de 1,875 Mo. C'est ce qui évite de diffuser un catalogue que
+> personne ne reprendrait.
 
 Pour un outil installé sur le poste :
 
@@ -401,6 +407,7 @@ démarrage qui n'affiche rien — voir la section « Dépannage » de
 | `Ctrl+K` | Recherche globale et actions |
 | `/` | Aller au champ de recherche |
 | `F1` | Aide et raccourcis |
+| `F11` | Passer en plein écran, ou revenir à la fenêtre (`Échap` en sort) |
 | `Ctrl+,` | Réglages |
 | `Alt+←` | Vue précédente |
 | `Alt+1…9` | Accueil, catalogue, favoris, récents, puis les catégories |

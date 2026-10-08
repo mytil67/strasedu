@@ -62,8 +62,14 @@ $MAX_NEWS_ITEMS       = 12
 $MAX_HIGHLIGHTS       = 3
 $MAX_HIGHLIGHTS_IDS   = 12
 $MAX_SCREENSHOTS      = 4
-$MAX_IMAGE_CHARS      = 512 * 1024
-$MAX_APP_IMAGES_CHARS = 6 * 1024 * 1024
+$MAX_IMAGE_CHARS      = 192 * 1024
+$MAX_APP_IMAGES_CHARS = 1536 * 1024
+# Poids du fichier publié : au-delà, les postes refusent le catalogue ENTIER.
+# On refuse donc de publier AVANT la limite, avec la même marge que l'outil
+# d'administration : les deux voies de publication appliquent les mêmes seuils.
+$MAX_CATALOG_BYTES    = 2 * 1024 * 1024
+$MAX_PUBLISH_BYTES    = $MAX_CATALOG_BYTES - 128 * 1024
+$WARN_CATALOG_BYTES   = 1600 * 1024
 # Data URI d'image acceptée : logo, vignette d'outil, bandeau d'information.
 $IMAGE_PATTERN = '^data:image/(png|jpeg|webp|svg\+xml);base64,[A-Za-z0-9+/=\s]+$'
 
@@ -309,6 +315,22 @@ function Test-Catalogue {
                 }
             }
         }
+    }
+
+    # ── Poids du fichier publié ───────────────────────────────────────────
+    # Un catalogue trop lourd est refusé EN ENTIER par les postes : ni nouvel
+    # outil, ni information. L'administrateur doit le savoir avant de publier,
+    # pas le découvrir dans le journal d'un poste. La mise en forme est celle de
+    # la publication, pour que la mesure corresponde au fichier écrit.
+    $publie = $Json | ConvertTo-Json -Depth 10
+    $octets = [System.Text.Encoding]::UTF8.GetByteCount($publie)
+    $ko = [math]::Round($octets / 1KB)
+    $publicationKo = [math]::Round($MAX_PUBLISH_BYTES / 1KB)
+    $posteKo = [math]::Round($MAX_CATALOG_BYTES / 1KB)
+    if ($octets -gt $MAX_PUBLISH_BYTES) {
+        $problems.Add("catalogue de $ko Ko : la publication est refusée au-delà de $publicationKo Ko, car les postes refusent le catalogue entier dès $posteKo Ko - allégez les visuels")
+    } elseif ($octets -gt $WARN_CATALOG_BYTES) {
+        $warnings.Add("catalogue de $ko Ko : la publication sera refusée au-delà de $publicationKo Ko - allégez les visuels")
     }
 }
 

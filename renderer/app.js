@@ -175,6 +175,7 @@
     searchWrap: document.getElementById("search-wrap"),
     searchClear: document.getElementById("search-clear"),
     theme: document.getElementById("btn-theme"),
+    fullscreen: document.getElementById("btn-fullscreen"),
     railToggle: document.getElementById("btn-rail"),
     settings: document.getElementById("btn-settings"),
     help: document.getElementById("btn-help"),
@@ -1568,13 +1569,31 @@
         )
       ) +
       settingRow(
+        "Démarrer en plein écran",
+        "S'applique au prochain lancement — utile sur un poste de classe. " +
+          "F11 bascule immédiatement, et Échap en sort.",
+        switchControl("fullscreen", state.prefs.fullscreen === true, "Démarrage en plein écran")
+      ) +
+      settingRow(
         "Catalogue",
-        "Version " + esc((state.catalog && state.catalog.version) || "?") +
+        // settingRow échappe déjà son texte : ne pas échapper une seconde fois,
+        // sinon une apostrophe s'affiche « &#39; ».
+        "Version " + ((state.catalog && state.catalog.version) || "?") +
           " · " + state.apps.length + " outils · mis à jour le " +
-          esc((state.catalog && state.catalog.lastUpdated) || "?") +
+          ((state.catalog && state.catalog.lastUpdated) || "?") +
           (caps.remoteConfigured ? "" : " · aucune source distante configurée"),
         '<button class="btn btn-sm" type="button" data-action="check-update">' +
           svg("refresh", 15) + "Vérifier</button>"
+      ) +
+      settingRow(
+        "Source du catalogue",
+        caps.remoteSource
+          ? caps.remoteSource +
+            (sync.lastChecked
+              ? " · vérifiée " + relativeTime(sync.lastChecked)
+              : " · pas encore vérifiée")
+          : "Aucune source distante : le poste utilise le catalogue livré avec l'application.",
+        ""
       ) +
       settingRow(
         "Favoris",
@@ -1601,6 +1620,7 @@
       ["Ctrl + K", "Ouvrir la recherche globale et les actions"],
       ["/", "Aller au champ de recherche"],
       ["F1", "Afficher cette aide"],
+      ["F11", "Passer en plein écran, ou revenir à la fenêtre"],
       ["Ctrl + ,", "Ouvrir les réglages"],
       ["Alt + ←", "Revenir à la vue précédente"],
       ["Alt + 1 à 9", "Accueil, catalogue, favoris, récents, puis les catégories"],
@@ -1797,6 +1817,10 @@
     state.usage = snapshot.usage || {};
     state.prefs = snapshot.prefs || {};
     state.capabilities = snapshot.capabilities || {};
+    state.fullscreen = !!state.capabilities.fullscreen;
+    if (els.fullscreen) {
+      els.fullscreen.setAttribute("aria-pressed", state.fullscreen ? "true" : "false");
+    }
     state.sync = snapshot.sync || { state: "ok", text: "Catalogue local" };
 
     renderBranding();
@@ -1916,6 +1940,12 @@
 
     els.theme.addEventListener("click", toggleTheme);
 
+    if (els.fullscreen) {
+      els.fullscreen.addEventListener("click", function () {
+        setFullscreen();
+      });
+    }
+
     els.railToggle.addEventListener("click", function () {
       savePrefs({ rail: state.prefs.rail === "compact" ? "expanded" : "compact" });
       applyRail();
@@ -1953,6 +1983,24 @@
     els.railNav.addEventListener("scroll", function () {
       fadeScrollbar(els.railNav);
     });
+
+    // La molette agit partout dans la fenêtre : un utilisateur qui laisse le
+    // pointeur sur le menu latéral, la barre du haut ou la barre d'état doit
+    // pouvoir faire défiler la page, sinon elle paraît figée.
+    document.addEventListener(
+      "wheel",
+      function (event) {
+        if (event.defaultPrevented || event.ctrlKey) return;
+        var node = event.target;
+        // Ces zones défilent pour leur propre compte : ne pas s'en mêler.
+        if (node && node.closest && node.closest(".content, .rail-scroll, .palette, .dialog")) {
+          return;
+        }
+        if (!els.content) return;
+        els.content.scrollTop += event.deltaY;
+      },
+      { passive: true }
+    );
 
     document.addEventListener("keydown", onKeyDown);
   }
@@ -1992,6 +2040,25 @@
     }
   }
 
+  /**
+   * Plein écran. Le rendu ne peut pas piloter la fenêtre : il transmet l'état
+   * voulu au processus principal, qui seul décide. Échap en sort, comme dans
+   * n'importe quelle application Windows.
+   */
+  function setFullscreen(value) {
+    if (!bridge || !bridge.setFullscreen) return;
+    bridge.setFullscreen(value).then(function (result) {
+      state.fullscreen = !!(result && result.fullscreen);
+      if (els.fullscreen) {
+        els.fullscreen.setAttribute("aria-pressed", state.fullscreen ? "true" : "false");
+        var label = state.fullscreen ? "Quitter le plein écran (F11)" : "Plein écran (F11)";
+        els.fullscreen.title = label;
+        els.fullscreen.setAttribute("aria-label", label);
+      }
+      announce(state.fullscreen ? "Plein écran" : "Fenêtre");
+    });
+  }
+
   function onKeyDown(event) {
     var key = event.key;
     var ctrl = event.ctrlKey || event.metaKey;
@@ -2000,6 +2067,13 @@
       event.target instanceof HTMLTextAreaElement;
 
     if (key === "Escape") {
+      // Le plein écran se quitte avant tout le reste : c'est le geste attendu
+      // par un utilisateur qui s'est retrouvé sans barre de titre.
+      if (state.fullscreen) {
+        setFullscreen(false);
+        event.preventDefault();
+        return;
+      }
       if (!els.dialog.hidden) {
         closeDialog();
         event.preventDefault();
@@ -2054,6 +2128,11 @@
     }
     if (key === "F1") {
       openHelp();
+      event.preventDefault();
+      return;
+    }
+    if (key === "F11") {
+      setFullscreen();
       event.preventDefault();
       return;
     }
