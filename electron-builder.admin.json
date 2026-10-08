@@ -27,18 +27,25 @@
     {
       "from": "icons-admin",
       "to": "icons",
-      "filter": ["icon.ico", "icon.png"]
+      "filter": [
+        "icon.ico",
+        "icon.png"
+      ]
     }
   ],
   "win": {
     "target": [
       {
         "target": "nsis",
-        "arch": ["x64"]
+        "arch": [
+          "x64"
+        ]
       },
       {
         "target": "portable",
-        "arch": ["x64"]
+        "arch": [
+          "x64"
+        ]
       }
     ],
     "icon": "icons-admin/icon.ico",
@@ -46,7 +53,7 @@
   },
   "nsis": {
     "oneClick": false,
-    "perMachine": false,
+    "perMachine": true,
     "allowElevation": true,
     "allowToChangeInstallationDirectory": false,
     "createDesktopShortcut": "always",

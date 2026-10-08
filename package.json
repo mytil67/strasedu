@@ -1,6 +1,6 @@
 {
   "name": "strasedu",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "StrasEdu — lanceur d'applications pédagogiques pour les établissements scolaires",
   "main": "main.js",
   "author": "STRAS EDU",
@@ -73,7 +73,7 @@
     },
     "nsis": {
       "oneClick": false,
-      "perMachine": false,
+      "perMachine": true,
       "allowElevation": true,
       "allowToChangeInstallationDirectory": false,
       "createDesktopShortcut": "always",

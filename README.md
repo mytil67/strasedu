@@ -69,12 +69,13 @@ pas *« le cinquième élément de la liste »*.
 
 - Icône applicative complète (16 → 256 px) — l'ancien `icons/` était vide,
   ce qui rendait toute fabrication d'installateur impossible.
-- Un **installateur unique** qui propose, au moment de l'installation, le mode
-  « pour tous les utilisateurs » (administrateur) ou « pour moi uniquement »
-  (sans droits particuliers). En mode silencieux, `/allusers` et `/currentuser`
-  choisissent l'un ou l'autre : un seul fichier couvre donc l'installation
-  manuelle par un enseignant et le déploiement GPO/SCCM.
-- Une version **portable**, sans installation ni raccourci.
+- Un **installateur par machine** : il installe pour tous les utilisateurs du
+  poste dans `C:\Program Files\StrasEdu`, et demande l'élévation **avant**
+  d'afficher l'assistant. Aucune question de portée à l'écran, donc rien qui
+  puisse échouer en cours d'assistant — un seul fichier couvre l'installation
+  manuelle et le déploiement GPO/SCCM.
+- Une version **portable**, sans installation ni raccourci, pour un poste
+  partagé ou un essai sans droits particuliers.
 - Configuration par fichier `strasedu.config.json` ou variable
   d'environnement, sans recompilation.
 

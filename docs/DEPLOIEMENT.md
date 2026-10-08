@@ -33,15 +33,24 @@ déclencher à chaque ouverture de session par GPO, sans effet de bord.
 
 ### Voie A — l'installateur NSIS (recommandée pour un poste isolé)
 
-Un **seul** installateur couvre les deux cas de figure. Au lancement, il
-demande s'il faut installer l'application pour tous les utilisateurs du poste
-(droits administrateur) ou pour l'utilisateur courant seulement (aucun droit
-particulier).
+L'installateur est **par machine** : il installe pour tous les utilisateurs du
+poste, dans `C:\Program Files\StrasEdu`, et demande l'élévation **avant**
+d'afficher l'assistant. Il n'y a donc aucune question de portée à l'écran, et
+rien qui puisse échouer en cours d'assistant.
+
+> Windows refuse de lancer un exécutable qui exige l'élévation depuis un
+> processus non élevé (`CreateProcess` renvoie alors `ERROR_ELEVATION_REQUIRED`).
+> Un script de déploiement doit donc l'appeler par `Start-Process`, jamais par
+> `&` ni par `spawn` : seul `Start-Process` passe par ShellExecute.
 
 | Fichier produit | Portée | Droits admin | Usage |
 | --- | --- | --- | --- |
-| `StrasEdu-2.0.0-x64-setup.exe` | Au choix à l'installation | Seulement pour « tous les utilisateurs » | Installation manuelle ou déploiement de parc. Dossier fixe : `%LOCALAPPDATA%\Programs\StrasEdu` ou `C:\Program Files\StrasEdu`. |
-| `StrasEdu-2.0.0-portable.exe` | Aucune | Non | Poste partagé ou clé USB. Aucune installation, aucun raccourci. |
+| `StrasEdu-2.1.1-x64-setup.exe` | Tous les utilisateurs du poste | Oui, à l'installation | Installation manuelle ou déploiement de parc. Dossier fixe : `C:\Program Files\StrasEdu`. |
+| `StrasEdu-2.1.1-portable.exe` | Aucune | Non | Poste partagé, clé USB, ou essai sans installation. Aucun raccourci. |
+
+Pour une installation propre à un seul utilisateur et sans droits
+particuliers, utilisez la version portable, ou `install-strasedu.ps1` sans
+`-AllUsers`.
 
 ### Voie B — le script de déploiement (recommandée pour un parc)
 
@@ -92,29 +101,29 @@ fixe, ce qui est indispensable à l'échelle d'un parc : une même application a
 même endroit sur tous les postes, donc des règles de détection, des scripts de
 support et des désinstallations qui fonctionnent partout.
 
-| Mode choisi | Dossier d'installation |
+| Portée | Dossier d'installation |
 | --- | --- |
-| Pour moi uniquement | `%LOCALAPPDATA%\Programs\StrasEdu` |
-| Pour tous les utilisateurs | `C:\Program Files\StrasEdu` |
+| Tous les utilisateurs (seule disponible) | `C:\Program Files\StrasEdu` |
 
-> **L'installation pour l'utilisateur courant peut être refusée** sur un poste
-> protégé : l'installateur n'est pas signé, et certains antivirus ou règles
-> bloquent l'écriture du premier fichier. Le message est alors
-> « erreur lors de l'ouverture du fichier en écriture » sur
-> `uninstallerIcon.ico` — un fichier qui n'a rien de particulier, sinon d'être
-> le premier déposé. Dans ce cas, installez **pour tous les utilisateurs**
-> (élévation), ou passez par la voie B.
+> **L'installateur ne propose plus de choix de portée.** Installer pour le seul
+> utilisateur courant obligeait l'assistant à s'élever *en cours de route*, via
+> le greffon UAC de NSIS. Sur un poste où l'élévation est silencieuse
+> (`ConsentPromptBehaviorAdmin = 0`), cette bascule échouait sans rien afficher :
+> la fenêtre se masquait, le processus élevé ne prenait pas la main, et
+> l'installateur se terminait sans avoir rien installé. L'élévation a donc lieu
+> **avant** l'assistant, par le manifeste de l'exécutable.
 
 ```powershell
-# Pour l'utilisateur courant uniquement (aucun droit administrateur)
-.\StrasEdu-2.0.0-x64-setup.exe /S /currentuser
+# Installation par machine (l'élévation est demandée automatiquement)
+Start-Process -FilePath .\StrasEdu-2.1.1-x64-setup.exe -ArgumentList "/S" -Wait
 
-# Pour tous les utilisateurs du poste (invite d'élévation)
-.\StrasEdu-2.0.0-x64-setup.exe /S /allusers
-
-# Désinstallation silencieuse
-& "C:\Program Files\StrasEdu\Uninstall StrasEdu.exe" /S
+# Désinstallation silencieuse (même contrainte : Start-Process)
+Start-Process -FilePath "C:\Program Files\StrasEdu\Uninstall StrasEdu.exe" -ArgumentList "/S" -Wait
 ```
+
+> `/S /currentuser` n'existe plus. Pour une installation sans droits
+> particuliers, utilisez la version portable, ou `install-strasedu.ps1` sans
+> `-AllUsers`.
 
 Un dossier particulier reste imposable **en ligne de commande**, pour un cas
 particulier : `/D=C:\Outils\StrasEdu`. `/D` doit être le **dernier** argument et
@@ -128,7 +137,7 @@ ne pas être entouré de guillemets.
 ### GPO / SCCM / Intune
 
 - **SCCM / Intune** : programme d'installation
-  `StrasEdu-2.0.0-x64-setup.exe`, arguments `/S /allusers`, détection sur
+  `StrasEdu-2.1.1-x64-setup.exe`, arguments `/S`, détection sur
   l'existence de `C:\Program Files\StrasEdu\StrasEdu.exe`.
 - **GPO (script de démarrage ordinateur)** : exécuter l'installateur avec
   `/S /allusers` depuis un partage `\\serveur\netlogon`.
@@ -164,7 +173,7 @@ Variantes utiles :
 Vérifier la signature après fabrication :
 
 ```powershell
-Get-AuthenticodeSignature .\dist\StrasEdu-2.0.0-x64-setup.exe |
+Get-AuthenticodeSignature .\dist\StrasEdu-2.1.1-x64-setup.exe |
     Format-List Status, SignerCertificate
 ```
 
@@ -176,7 +185,7 @@ Get-AuthenticodeSignature .\dist\StrasEdu-2.0.0-x64-setup.exe |
 > ne s'applique qu'aux fichiers marqués « venus d'Internet ».
 
 ```powershell
-Get-FileHash .\dist\StrasEdu-2.0.0-x64-setup.exe -Algorithm SHA256
+Get-FileHash .\dist\StrasEdu-2.1.1-x64-setup.exe -Algorithm SHA256
 ```
 
 ---
