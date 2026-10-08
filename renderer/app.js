@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Portail Outils — logique d'interface
+   StrasEdu — logique d'interface
    --------------------------------------------------------------------------
    Sommaire :
      1.  Utilitaires (échappement, accents, recherche floue, couleurs, dates)
@@ -132,13 +132,6 @@
     });
   }
 
-  function greeting() {
-    var hour = new Date().getHours();
-    if (hour < 6) return "Bonne nuit";
-    if (hour < 18) return "Bonjour";
-    return "Bonsoir";
-  }
-
   function debounce(fn, delay) {
     var timer = null;
     return function () {
@@ -153,7 +146,7 @@
 
   /* ═══ 2. État et pont applicatif ════════════════════════════════════════ */
 
-  var bridge = window.portail;
+  var bridge = window.strasedu;
 
   var state = {
     route: { name: "home" },
@@ -196,13 +189,8 @@
     dialogClose: document.getElementById("dialog-close"),
     toastHost: document.getElementById("toast-host"),
     live: document.getElementById("live"),
-    statusEstab: document.getElementById("status-estab"),
     statusSync: document.getElementById("status-sync"),
-    statusVersion: document.getElementById("status-version"),
-    railOrg: document.getElementById("rail-org"),
-    userAvatar: document.getElementById("user-avatar"),
-    userName: document.getElementById("user-name"),
-    userOrg: document.getElementById("user-org")
+    statusVersion: document.getElementById("status-version")
   };
 
   function announce(message) {
@@ -650,20 +638,18 @@
 
   function viewHome() {
     var html = "";
-    var user = (state.catalog && state.catalog.user) || {};
     var recents = recentApps(5);
     var favorites = favoriteApps();
 
+    // Pas d'accueil nominatif : l'outil est commun à tous les utilisateurs du
+    // poste, il n'y a donc ni nom ni établissement à afficher.
     html +=
       '<header class="hero">' +
-      '<h1 class="hero-title">' +
-      esc(greeting()) +
-      (user.name ? ", " + esc(String(user.name).split(" ").slice(-1)[0]) : "") +
-      "</h1>" +
+      '<h1 class="hero-title">Vos outils pédagogiques</h1>' +
       '<p class="hero-sub">Choisissez une catégorie, ou appuyez sur ' +
       '<span class="kbd">Ctrl</span> <span class="kbd">K</span> pour chercher parmi les ' +
       state.apps.length +
-      " outils du portail.</p>" +
+      " outils disponibles.</p>" +
       '<div class="hero-cta">' +
       '<button class="btn btn-primary" type="button" data-action="palette">' +
       svg("search", 17) +
@@ -749,7 +735,7 @@
 
   /**
    * Applique la marque de l'établissement : son logo s'il est fourni par le
-   * catalogue, sinon la marque par défaut du portail.
+   * catalogue, sinon la marque par défaut de StrasEdu.
    */
   function renderBranding() {
     var logo = state.catalog && state.catalog.logo;
@@ -1340,8 +1326,7 @@
         .join("") +
       "</tbody></table>" +
       '<p class="setting-help about-line">' +
-      "Portail Outils " + esc(state.capabilities.version || "") +
-      " · " + esc((state.catalog && state.catalog.establishment) || "") +
+      "StrasEdu " + esc(state.capabilities.version || "") +
       " · " + state.apps.length + " outils référencés.</p>";
 
     showDialog("Aide et raccourcis", body, '<button class="btn btn-primary" type="button" data-action="close-dialog">Fermer</button>');
@@ -1472,8 +1457,6 @@
   }
 
   function renderStatus() {
-    els.statusEstab.textContent =
-      (state.catalog && state.catalog.establishment) || "Portail Outils";
     var sync = state.sync;
     els.statusSync.setAttribute("data-state", sync.state === "warn" ? "warn" : "ok");
     els.statusSync.textContent = sync.text || "Catalogue local";
@@ -1511,12 +1494,6 @@
     state.capabilities = snapshot.capabilities || {};
     state.sync = snapshot.sync || { state: "ok", text: "Catalogue local" };
 
-    var user = state.catalog.user || {};
-    els.userAvatar.textContent = user.initials || "";
-    els.userName.textContent = user.name || "";
-    els.userOrg.textContent = user.role || "";
-    els.railOrg.textContent = state.catalog.establishment || "";
-    els.statusEstab.textContent = state.catalog.establishment || "";
     renderBranding();
   }
 
@@ -1784,14 +1761,14 @@
     els.content.innerHTML =
       '<div class="content-inner"><div class="empty">' +
       '<span class="empty-ico">' + svg("alert", 34) + "</span>" +
-      '<div class="empty-title">Le portail n\'a pas pu démarrer</div>' +
+      '<div class="empty-title">StrasEdu n\'a pas pu démarrer</div>' +
       '<p class="empty-text">' + esc(message) + "</p></div></div>";
   }
 
   function start() {
     if (!bridge) {
       fatal(
-        "L'interface a été ouverte hors de l'application. Lancez « Portail Outils » " +
+        "L'interface a été ouverte hors de l'application. Lancez « StrasEdu » " +
           "depuis le menu Démarrer pour accéder au catalogue."
       );
       return;
@@ -1808,7 +1785,7 @@
       if (!state.apps.length) {
         toast(
           "Catalogue vide",
-          "Aucun outil n'est référencé. Contactez l'administrateur du portail.",
+          "Aucun outil n'est référencé. Contactez l'administrateur de StrasEdu.",
           "warn"
         );
       }

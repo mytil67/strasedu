@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Portail Outils — logique de l'application d'administration
+   StrasEdu — logique de l'application d'administration
    --------------------------------------------------------------------------
    Le catalogue est tenu en mémoire et modifié directement : chaque champ écrit
    dans l'objet, et seules les listes sont redessinées. Les champs de saisie ne
@@ -428,15 +428,10 @@
     scheduleValidate();
   }
 
-  /* ═══ Établissement ═════════════════════════════════════════════════════ */
+  /* ═══ Application ═══════════════════════════════════════════════════════ */
 
-  function renderEstablishment() {
-    var c = state.catalog;
-    els.eEstablishment.value = c.establishment || "";
-    els.eInitials.value = (c.user && c.user.initials) || "";
-    els.eUser.value = (c.user && c.user.name) || "";
-    els.eRole.value = (c.user && c.user.role) || "";
-    els.eVersion.value = c.version || "0.0.0";
+  function renderApplication() {
+    els.eVersion.value = state.catalog.version || "0.0.0";
     els.eShare.value = state.sharePath || "";
     renderLogo();
   }
@@ -444,11 +439,11 @@
   function renderLogo() {
     var logo = state.catalog.logo;
     els.logoPreview.innerHTML = logo
-      ? '<img alt="Logo de l\'établissement" src="' + esc(logo) + '">'
+      ? '<img alt="Logo de StrasEdu" src="' + esc(logo) + '">'
       : "aucun";
     els.logoNote.textContent = logo
-      ? "Le logo remplace la marque du portail dans la barre latérale."
-      : "Aucun logo : la marque du portail est utilisée.";
+      ? "Le logo remplace la marque par défaut dans la barre latérale."
+      : "Aucun logo : la marque par défaut est utilisée.";
 
     els.brandMark.classList.toggle("has-logo", !!logo);
     els.brandMark.innerHTML = logo
@@ -506,7 +501,7 @@
     loadAppForm();
     renderCats();
     loadCatForm();
-    renderEstablishment();
+    renderApplication();
     renderStatus();
     scheduleValidate();
   }
@@ -550,8 +545,8 @@
   function doPublish() {
     if (!state.catalog) return;
     if (!state.sharePath) {
-      toast("Aucun partage configuré", "Onglet Établissement → choisir le dossier de publication.", "warn");
-      setTab("establishment");
+      toast("Aucun partage configuré", "Onglet Application → choisir le dossier de publication.", "warn");
+      setTab("application");
       return;
     }
     bridge.publish(state.catalog).then(function (result) {
@@ -560,7 +555,7 @@
         return;
       }
       state.catalog = result.catalog;
-      renderEstablishment();
+      renderApplication();
       renderStatus();
       toast(
         "Catalogue publié — v" + result.version,
@@ -720,18 +715,12 @@
     els.cColor.addEventListener("input", function () { applyColor(els.cColor.value); });
     els.cColorText.addEventListener("change", function () { applyColor(els.cColorText.value.trim()); });
 
-    function bindEstablishment(element, apply) {
-      element.addEventListener("input", function () {
-        apply(state.catalog, element.value);
-        scheduleValidate();
-      });
-    }
-
-    bindEstablishment(els.eEstablishment, function (c, v) { c.establishment = v; });
-    bindEstablishment(els.eInitials, function (c, v) { c.user = c.user || {}; c.user.initials = v; });
-    bindEstablishment(els.eUser, function (c, v) { c.user = c.user || {}; c.user.name = v; });
-    bindEstablishment(els.eRole, function (c, v) { c.user = c.user || {}; c.user.role = v; });
-    bindEstablishment(els.eVersion, function (c, v) { c.version = v.trim(); });
+    // L'outil est commun à tous les utilisateurs du poste : ni nom
+    // d'établissement, ni identité. Seuls la version et le logo se règlent ici.
+    els.eVersion.addEventListener("input", function () {
+      state.catalog.version = els.eVersion.value.trim();
+      scheduleValidate();
+    });
 
     document.addEventListener("keydown", function (event) {
       if ((event.ctrlKey || event.metaKey) && event.key === "s") {
@@ -809,10 +798,6 @@
       cColor: $("c-color"),
       cColorText: $("c-color-text"),
       cPreview: $("c-preview"),
-      eEstablishment: $("e-establishment"),
-      eInitials: $("e-initials"),
-      eUser: $("e-user"),
-      eRole: $("e-role"),
       eVersion: $("e-version"),
       eShare: $("e-share"),
       logoPreview: $("logo-preview"),
@@ -833,22 +818,20 @@
         els.stFile.textContent = payload.error || "Aucun catalogue chargé";
         state.catalog = {
           version: "1.0.0",
-          establishment: "",
-          user: {},
           categories: [],
           categoryMeta: {},
           apps: []
         };
         renderApps();
         renderCats();
-        renderEstablishment();
+        renderApplication();
         renderStatus();
         return;
       }
 
       wire();
       absorb(payload);
-      document.title = "Portail Outils — Administration";
+      document.title = "StrasEdu Administration";
       // Exposé pour l'auto-vérification : permet de piloter l'interface sans
       // dépendre d'une souris.
       window.__adminState = state;

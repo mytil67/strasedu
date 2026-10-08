@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Portail Outils — pont de l'application d'administration
+   StrasEdu — pont de l'application d'administration
    --------------------------------------------------------------------------
    Surface étroite : lire et écrire un catalogue, choisir des fichiers, et
    publier. Aucune exécution de programme, aucune URL arbitraire.

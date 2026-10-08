@@ -1,10 +1,33 @@
 /* ==========================================================================
-   Portail Outils — habillage de l'application d'administration
+   StrasEdu — habillage de l'application d'administration
    --------------------------------------------------------------------------
    Complète styles/app.css, dont il reprend tous les jetons de design
-   (couleurs, rythme, arrondis, thèmes clair/sombre). Ne redéfinit rien : il
-   ajoute uniquement la mise en page de l'atelier et ses champs.
+   (couleurs, rythme, arrondis, thèmes clair/sombre). Il ne redéfinit qu'une
+   chose : la couleur d'accent.
    ========================================================================== */
+
+/* ── Couleur propre à l'administration ───────────────────────────────────────
+   Un violet royal, pour qu'on ne confonde jamais l'atelier d'administration
+   avec l'application des enseignants, qui est verte. Ces règles visent les
+   mêmes sélecteurs que app.css ; l'emportant par l'ordre de cascade, elles
+   doivent couvrir chaque thème séparément. */
+
+:root {
+  --accent: #7c3aed;
+  --accent-strong: #6d28d9;
+}
+
+html[data-theme="light"] {
+  --accent-ink: #6d28d9;
+}
+
+/* Sur fond sombre, un violet plus clair : un violet foncé n'offrirait pas
+   assez de contraste pour le texte posé dessus. */
+html[data-theme="dark"] {
+  --accent: #a78bfa;
+  --accent-ink: #c4b5fd;
+  --on-accent: #2e1065;
+}
 
 html,
 body {
@@ -54,7 +77,7 @@ body.admin-body-root {
   border-radius: 8px;
   display: grid;
   place-items: center;
-  background: linear-gradient(145deg, #42e294, #0e9e60);
+  background: linear-gradient(145deg, #a78bfa, #6d28d9);
   color: #fff;
   overflow: hidden;
 }

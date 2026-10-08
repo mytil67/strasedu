@@ -1,7 +1,7 @@
 {
-  "name": "portail-outils",
-  "version": "2.0.0",
-  "description": "Portail Outils — lanceur d'applications pédagogiques pour les établissements scolaires",
+  "name": "strasedu",
+  "version": "2.1.0",
+  "description": "StrasEdu — lanceur d'applications pédagogiques pour les établissements scolaires",
   "main": "main.js",
   "author": "STRAS EDU",
   "license": "UNLICENSED",
@@ -26,8 +26,8 @@
     "electron-builder": "^25.1.8"
   },
   "build": {
-    "appId": "fr.strasedu.portail-outils",
-    "productName": "Portail Outils",
+    "appId": "fr.strasedu.app",
+    "productName": "StrasEdu",
     "copyright": "© STRAS EDU",
     "directories": {
       "output": "dist",
@@ -68,7 +68,7 @@
         }
       ],
       "icon": "icons/icon.ico",
-      "artifactName": "PortailOutils-${version}-${arch}-setup.${ext}",
+      "artifactName": "StrasEdu-${version}-${arch}-setup.${ext}",
       "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
@@ -78,15 +78,15 @@
       "allowToChangeInstallationDirectory": false,
       "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
-      "shortcutName": "Portail Outils",
-      "uninstallDisplayName": "Portail Outils ${version}",
+      "shortcutName": "StrasEdu",
+      "uninstallDisplayName": "StrasEdu ${version}",
       "deleteAppDataOnUninstall": false,
       "runAfterFinish": true,
       "installerIcon": "icons/icon.ico",
       "language": "1036"
     },
     "portable": {
-      "artifactName": "PortailOutils-${version}-portable.${ext}",
+      "artifactName": "StrasEdu-${version}-portable.${ext}",
       "splashImage": "build/splash.bmp"
     }
   }

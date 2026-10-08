@@ -1,5 +1,5 @@
 ﻿# ═══════════════════════════════════════════════════════════════════════════
-# Portail Outils - déploiement et mise à jour par copie de dossier
+# StrasEdu - déploiement et mise à jour par copie de dossier
 # ---------------------------------------------------------------------------
 # Installe l'application sans passer par l'installateur NSIS : aucun
 # assistant, aucune écriture de registre pendant la copie, aucun droit
@@ -15,21 +15,21 @@
 # propre outil, même si le partage réseau d'origine disparaît.
 #
 # Exemples :
-#   .\install-portail.ps1 -Source "\\serveur\partage\PortailOutils" `
+#   .\install-strasedu.ps1 -Source "\\serveur\partage\StrasEdu" `
 #                         -RemoteAppsUrl "https://…/apps.json"
 #
-#   .\install-portail.ps1 -Source "\\serveur\partage\PortailOutils" -CheckOnly
+#   .\install-strasedu.ps1 -Source "\\serveur\partage\StrasEdu" -CheckOnly
 #
-#   .\install-portail.ps1 -Uninstall
+#   .\install-strasedu.ps1 -Uninstall
 # ═══════════════════════════════════════════════════════════════════════════
 
 [CmdletBinding()]
 param(
-    # Dossier contenant « Portail Outils.exe » (généralement dist\win-unpacked).
+    # Dossier contenant « StrasEdu.exe » (généralement dist\win-unpacked).
     [string]$Source,
 
     # Dossier d'installation. Par défaut : profil de l'utilisateur, ou
-    # C:\Program Files\Portail Outils avec -AllUsers.
+    # C:\Program Files\StrasEdu avec -AllUsers.
     [string]$Destination,
 
     # Installer pour tous les utilisateurs (nécessite une élévation).
@@ -51,7 +51,7 @@ param(
     # Désinstaller.
     [switch]$Uninstall,
 
-    # Conserver %APPDATA%\Portail Outils lors d'une désinstallation.
+    # Conserver %APPDATA%\StrasEdu lors d'une désinstallation.
     [switch]$KeepUserData,
 
     [switch]$Quiet
@@ -63,13 +63,13 @@ $ErrorActionPreference = "Stop"
 # lisibles une fois centralisés, quel que soit le code page du poste.
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 
-$AppName      = "Portail Outils"
+$AppName      = "StrasEdu"
 $AppExe       = "$AppName.exe"
-$RegKeyName   = "Portail Outils"
-$SelfName     = "install-portail.ps1"
+$RegKeyName   = "StrasEdu"
+$SelfName     = "install-strasedu.ps1"
 
 # ─── Journalisation ────────────────────────────────────────────────────────
-$script:LogPath = Join-Path $env:TEMP "portail-deploiement.log"
+$script:LogPath = Join-Path $env:TEMP "strasedu-deploiement.log"
 
 function Write-Log {
     param([string]$Message, [string]$Level = "INFO")
@@ -141,7 +141,7 @@ function Assert-WritableDestination {
         throw "Impossible de créer le dossier de destination : $Path`n$($_.Exception.Message)"
     }
 
-    $probe = Join-Path $Path ".portail-sonde-ecriture"
+    $probe = Join-Path $Path ".strasedu-sonde-ecriture"
     try {
         Set-Content -Path $probe -Value "x" -ErrorAction Stop
         Remove-Item $probe -Force -ErrorAction SilentlyContinue
@@ -153,7 +153,7 @@ function Assert-WritableDestination {
     }
 }
 
-function Stop-Portail {
+function Stop-StrasEdu {
     $procs = Get-Process -Name $AppName -ErrorAction SilentlyContinue
     if (-not $procs) { return }
     Write-Log "Arrêt de $($procs.Count) instance(s) en cours..."
@@ -267,7 +267,7 @@ function Write-DeployConfig {
     }
     if ($AllowedLocalRoots) { $config.allowedLocalRoots = $AllowedLocalRoots }
 
-    $target = Join-Path $resources "portail.config.json"
+    $target = Join-Path $resources "strasedu.config.json"
     $config | ConvertTo-Json -Depth 4 | Set-Content -Path $target -Encoding UTF8
     Write-Log "Configuration écrite : $target"
 }
@@ -277,7 +277,7 @@ if ($Uninstall) {
     $dest = Resolve-Destination
     Write-Log "=== Désinstallation depuis $dest ==="
 
-    Stop-Portail
+    Stop-StrasEdu
 
     $links = Get-ShortcutPaths -InstallDir $dest
     foreach ($link in @($links.StartMenu, $links.Desktop, $links.Startup)) {
@@ -356,7 +356,7 @@ try {
 $binaryChanged = -not ($installedVersion -and ($installedVersion -eq $sourceVersion))
 
 if ($binaryChanged) {
-    Stop-Portail
+    Stop-StrasEdu
 
     if (-not (Test-Path $dest)) { New-Item -ItemType Directory -Path $dest -Force | Out-Null }
 
@@ -367,7 +367,7 @@ if ($binaryChanged) {
     $roboArgs = @(
         $Source, $dest,
         "/MIR", "/R:2", "/W:1",
-        "/XF", "portail.config.json",
+        "/XF", "strasedu.config.json",
         "/NFL", "/NDL", "/NJH", "/NJS", "/NP"
     )
 

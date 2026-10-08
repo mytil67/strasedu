@@ -2,7 +2,7 @@
 
 Le catalogue est un fichier `apps.json` : la liste des outils, leurs catégories,
 leurs couleurs et leurs descriptions. C'est **le seul fichier à modifier pour
-faire vivre le portail** — ajouter un outil, retirer une ressource, corriger une
+faire vivre StrasEdu** — ajouter un outil, retirer une ressource, corriger une
 URL, réordonner les catégories.
 
 > Aucune réinstallation n'est nécessaire. Seul un changement du **logiciel**
@@ -20,14 +20,14 @@ publie sur le partage réseau.
 
 | Fichier | Usage |
 | --- | --- |
-| `PortailOutils-Administration-2.0.0-setup.exe` | Installation classique : menu Démarrer et raccourci sur le bureau. |
-| `PortailOutils-Administration-2.0.0-portable.exe` | Aucune installation : double-clic, l'outil s'ouvre. Pratique depuis une clé USB ou un partage. |
+| `StrasEdu-Administration-2.0.0-setup.exe` | Installation classique : menu Démarrer et raccourci sur le bureau. |
+| `StrasEdu-Administration-2.0.0-portable.exe` | Aucune installation : double-clic, l'outil s'ouvre. Pratique depuis une clé USB ou un partage. |
 
 Aucun droit administrateur n'est requis, ni Node, ni npm : ce sont des
 exécutables autonomes.
 
 **Au premier lancement**, l'outil travaille sur une copie du catalogue livré,
-placée dans votre profil (`%APPDATA%\Portail Outils Administration\apps.json`).
+placée dans votre profil (`%APPDATA%\StrasEdu Administration\apps.json`).
 Vous pouvez la modifier sans risque : le catalogue installé sur les postes n'est
 touché que lorsque vous cliquez sur **Publier**.
 
@@ -41,9 +41,9 @@ npm run build:admin     # écrit dans dist-admin/
 
 | Onglet | Ce qu'on y fait |
 | --- | --- |
-| **Outils** | Ajouter, modifier, supprimer un outil ; lui affecter une icône parmi celles du portail, ou revenir à la pastille à deux lettres ; régler catégorie, type (site web ou logiciel installé), mots-clés, pastille chiffrée. |
+| **Outils** | Ajouter, modifier, supprimer un outil ; lui affecter une icône parmi celles de StrasEdu, ou revenir à la pastille à deux lettres ; régler catégorie, type (site web ou logiciel installé), mots-clés, pastille chiffrée. |
 | **Catégories** | Créer une catégorie, la renommer (les outils suivent), choisir son icône, sa couleur et sa description. |
-| **Établissement** | Nom, initiales de l'utilisateur, logo officiel (il remplace la marque du portail), version du catalogue, et dossier de publication. |
+| **Application** | Logo de StrasEdu (il remplace la marque par défaut), version du catalogue, et dossier de publication. |
 
 L'aperçu de catégorie et le bandeau supérieur montrent le résultat en direct.
 La barre d'état indique en permanence si le catalogue est conforme, et les
@@ -51,8 +51,8 @@ outils fautifs sont marqués « à vérifier » dans la liste.
 
 ### Publier
 
-1. **Établissement → Choisir le dossier…** : désigner le partage réseau
-   (`\\serveur\partage\PortailOutils`). Le choix est mémorisé.
+1. **Application → Choisir le dossier…** : désigner le partage réseau
+   (`\\serveur\partage\StrasEdu`). Le choix est mémorisé.
 2. **Publier…** : validation, incrément automatique de la version, écriture de
    `apps.json` par fichier temporaire puis remplacement.
 
@@ -149,7 +149,7 @@ les postes. Le rapport distingue :
 
 ```powershell
 .\scripts\update-catalog.ps1 -AppsJsonPath .\apps.json `
-                             -SharePath "\\serveur\partage\PortailOutils\apps.json"
+                             -SharePath "\\serveur\partage\StrasEdu\apps.json"
 ```
 
 Le fichier est écrit par fichier temporaire puis remplacé : un poste qui lit
@@ -175,11 +175,11 @@ Pour forcer immédiatement sur un poste : **Réglages → Catalogue → Vérifie
 
 ## 4. Configurer les postes (une seule fois)
 
-Créez `portail.config.json` dans le dossier `resources` de l'installation :
+Créez `strasedu.config.json` dans le dossier `resources` de l'installation :
 
 ```json
 {
-  "remoteAppsUrl": "\\\\serveur\\partage\\PortailOutils\\apps.json",
+  "remoteAppsUrl": "\\\\serveur\\partage\\StrasEdu\\apps.json",
   "checkIntervalMinutes": 30,
   "allowedLocalRoots": [
     "C:\\Program Files",
@@ -199,8 +199,8 @@ Créez `portail.config.json` dans le dossier `resources` de l'installation :
 Le script de déploiement écrit ce fichier pour vous :
 
 ```powershell
-.\scripts\install-portail.ps1 -Source "\\serveur\partage\PortailOutils" `
-                              -RemoteAppsUrl "\\serveur\partage\PortailOutils\apps.json"
+.\scripts\install-strasedu.ps1 -Source "\\serveur\partage\StrasEdu" `
+                              -RemoteAppsUrl "\\serveur\partage\StrasEdu\apps.json"
 ```
 
 > **Écrivez ce fichier sans BOM.** Bloc-notes et `Set-Content -Encoding UTF8` en
@@ -215,20 +215,20 @@ Le script de déploiement écrit ce fichier pour vous :
 *Réglages → Catalogue* affiche la version, le nombre d'outils et la date.
 
 **En masse :** le journal applicatif de chaque poste est dans
-`%APPDATA%\Portail Outils\logs\portail.log` :
+`%APPDATA%\StrasEdu\logs\strasedu.log` :
 
 ```
 Catalogue mis à jour : v2.0.0 → v2.0.1
 ```
 
-Et la trace de démarrage, dans `%TEMP%\PortailOutils-demarrage.log`, confirme
+Et la trace de démarrage, dans `%TEMP%\StrasEdu-demarrage.log`, confirme
 que la configuration est bien lue :
 
 ```
 configuration lue — catalogue distant : configuré
 ```
 
-Si elle indique `absent`, le `portail.config.json` n'est pas au bon endroit :
+Si elle indique `absent`, le `strasedu.config.json` n'est pas au bon endroit :
 il doit être dans le sous-dossier `resources` de l'installation, pas à côté de
 l'exécutable.
 
@@ -239,8 +239,8 @@ l'exécutable.
 Chaque poste conserve la version précédente avant de la remplacer :
 
 ```powershell
-Copy-Item "$env:APPDATA\Portail Outils\apps.previous.json" `
-          "$env:APPDATA\Portail Outils\apps.json" -Force
+Copy-Item "$env:APPDATA\StrasEdu\apps.previous.json" `
+          "$env:APPDATA\StrasEdu\apps.json" -Force
 ```
 
 Puis relancez l'application. Si un catalogue publié pose problème, le plus
@@ -257,7 +257,7 @@ automatiquement.
 | Rien ne se met à jour | La `version` n'a pas changé — c'est le seul déclencheur. |
 | Un outil a disparu après publication | Son `url` ou son `path` a été refusé par la validation. Lancez `-ValidateOnly`. |
 | Aucun poste ne récupère | Adresse injoignable, ou projet GitLab privé sans accès anonyme. |
-| `catalogue distant : absent` dans la trace | `portail.config.json` mal placé (il va dans `resources\`). |
+| `catalogue distant : absent` dans la trace | `strasedu.config.json` mal placé (il va dans `resources\`). |
 | Les tuiles d'accueil sont ternes | `categoryMeta` incomplet : icône, couleur et description par catégorie. |
 | Un outil installé ne se lance pas | `path` inexistant sur ce poste : *« Le logiciel n'est pas installé sur ce poste »*. |
 

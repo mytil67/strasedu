@@ -1,10 +1,7 @@
 {
-  "version": "2.0.0",
+  "version": "2.1.0",
   "schema": 2,
-  "lastUpdated": "2026-10-07",
-  "establishment": "Collège Jean-Moulin",
-  "user": { "initials": "CM", "name": "C. Marchand" },
-
+  "lastUpdated": "2026-10-08",
   "categoryMeta": {
     "Audio": {
       "icon": "mic",
@@ -37,9 +34,14 @@
       "description": "Services numériques académiques et nationaux."
     }
   },
-
-  "categories": ["Audio", "Vidéo", "IA", "Fichiers", "PDF", "Services"],
-
+  "categories": [
+    "Audio",
+    "Vidéo",
+    "IA",
+    "Fichiers",
+    "PDF",
+    "Services"
+  ],
   "apps": [
     {
       "id": "vocaroo",
@@ -49,7 +51,13 @@
       "mark": "Vo",
       "badge": 0,
       "meta": "Sans compte",
-      "keywords": ["enregistrer", "voix", "micro", "dictee", "oral"],
+      "keywords": [
+        "enregistrer",
+        "voix",
+        "micro",
+        "dictee",
+        "oral"
+      ],
       "url": "https://vocaroo.com",
       "type": "web"
     },
@@ -61,7 +69,13 @@
       "mark": "Au",
       "badge": 0,
       "meta": "Licence établissement",
-      "keywords": ["montage", "piste", "couper", "mixage", "podcast"],
+      "keywords": [
+        "montage",
+        "piste",
+        "couper",
+        "mixage",
+        "podcast"
+      ],
       "url": "https://www.audacityteam.org",
       "type": "web"
     },
@@ -73,7 +87,12 @@
       "mark": "Pd",
       "badge": 2,
       "meta": "12 projets",
-      "keywords": ["podcast", "transcription", "emission", "radio"],
+      "keywords": [
+        "podcast",
+        "transcription",
+        "emission",
+        "radio"
+      ],
       "url": "https://podcastle.ai",
       "type": "web"
     },
@@ -85,11 +104,16 @@
       "mark": "As",
       "badge": 0,
       "meta": "Admin requis",
-      "keywords": ["heberger", "diffuser", "flux", "rss", "podcast"],
+      "keywords": [
+        "heberger",
+        "diffuser",
+        "flux",
+        "rss",
+        "podcast"
+      ],
       "url": "https://www.ausha.co",
       "type": "web"
     },
-
     {
       "id": "clipchamp",
       "name": "Clipchamp",
@@ -98,7 +122,12 @@
       "mark": "Cl",
       "badge": 0,
       "meta": "SSO Microsoft",
-      "keywords": ["monter", "couper", "sous-titres", "office"],
+      "keywords": [
+        "monter",
+        "couper",
+        "sous-titres",
+        "office"
+      ],
       "url": "https://app.clipchamp.com",
       "type": "web"
     },
@@ -110,7 +139,12 @@
       "mark": "Pt",
       "badge": 4,
       "meta": "38 vidéos",
-      "keywords": ["heberger", "publier", "capsule", "academie"],
+      "keywords": [
+        "heberger",
+        "publier",
+        "capsule",
+        "academie"
+      ],
       "url": "https://tube.ac-strasbourg.fr",
       "type": "web"
     },
@@ -122,7 +156,12 @@
       "mark": "Lo",
       "badge": 0,
       "meta": "25 min / vidéo",
-      "keywords": ["capture", "ecran", "tutoriel", "presenter"],
+      "keywords": [
+        "capture",
+        "ecran",
+        "tutoriel",
+        "presenter"
+      ],
       "url": "https://www.loom.com",
       "type": "web"
     },
@@ -134,11 +173,15 @@
       "mark": "Ed",
       "badge": 1,
       "meta": "3 classes",
-      "keywords": ["interactif", "questions", "quiz", "classe"],
+      "keywords": [
+        "interactif",
+        "questions",
+        "quiz",
+        "classe"
+      ],
       "url": "https://edpuzzle.com",
       "type": "web"
     },
-
     {
       "id": "chatgpt",
       "name": "ChatGPT Edu",
@@ -147,7 +190,12 @@
       "mark": "Gp",
       "badge": 0,
       "meta": "SSO académie",
-      "keywords": ["assistant", "rediger", "chat", "preparer"],
+      "keywords": [
+        "assistant",
+        "rediger",
+        "chat",
+        "preparer"
+      ],
       "url": "https://chat.openai.com",
       "type": "web"
     },
@@ -159,7 +207,12 @@
       "mark": "Cd",
       "badge": 0,
       "meta": "SSO académie",
-      "keywords": ["assistant", "analyser", "resumer", "document"],
+      "keywords": [
+        "assistant",
+        "analyser",
+        "resumer",
+        "document"
+      ],
       "url": "https://claude.ai",
       "type": "web"
     },
@@ -171,7 +224,12 @@
       "mark": "Lc",
       "badge": 0,
       "meta": "RGPD",
-      "keywords": ["assistant", "europe", "donnees", "mistral"],
+      "keywords": [
+        "assistant",
+        "europe",
+        "donnees",
+        "mistral"
+      ],
       "url": "https://chat.mistral.ai",
       "type": "web"
     },
@@ -183,11 +241,15 @@
       "mark": "Np",
       "badge": 3,
       "meta": "Bêta",
-      "keywords": ["schema", "infographie", "visuel", "croquis"],
+      "keywords": [
+        "schema",
+        "infographie",
+        "visuel",
+        "croquis"
+      ],
       "url": "https://www.napkin.ai",
       "type": "web"
     },
-
     {
       "id": "nextcloud",
       "name": "Nextcloud",
@@ -196,7 +258,13 @@
       "mark": "Nc",
       "badge": 0,
       "meta": "50 Go",
-      "keywords": ["stockage", "partage", "cloud", "dossier", "classe"],
+      "keywords": [
+        "stockage",
+        "partage",
+        "cloud",
+        "dossier",
+        "classe"
+      ],
       "url": "https://nextcloud.ac-strasbourg.fr",
       "type": "web"
     },
@@ -208,7 +276,12 @@
       "mark": "Od",
       "badge": 7,
       "meta": "1 To",
-      "keywords": ["stockage", "synchroniser", "microsoft", "cloud"],
+      "keywords": [
+        "stockage",
+        "synchroniser",
+        "microsoft",
+        "cloud"
+      ],
       "url": "https://onedrive.live.com",
       "type": "web"
     },
@@ -220,7 +293,12 @@
       "mark": "Fs",
       "badge": 0,
       "meta": "100 Go / envoi",
-      "keywords": ["envoyer", "gros fichier", "transfert", "renater"],
+      "keywords": [
+        "envoyer",
+        "gros fichier",
+        "transfert",
+        "renater"
+      ],
       "url": "https://filesender.renater.fr",
       "type": "web"
     },
@@ -232,11 +310,15 @@
       "mark": "Dg",
       "badge": 0,
       "meta": "Lecture seule",
-      "keywords": ["archiver", "coffre", "conserver", "document"],
+      "keywords": [
+        "archiver",
+        "coffre",
+        "conserver",
+        "document"
+      ],
       "url": "https://www.digiposte.fr",
       "type": "web"
     },
-
     {
       "id": "stirling",
       "name": "Stirling PDF",
@@ -245,7 +327,12 @@
       "mark": "St",
       "badge": 0,
       "meta": "Hébergé local",
-      "keywords": ["fusionner", "decouper", "compresser", "convertir"],
+      "keywords": [
+        "fusionner",
+        "decouper",
+        "compresser",
+        "convertir"
+      ],
       "url": "https://stirlingpdf.io",
       "type": "web"
     },
@@ -257,7 +344,12 @@
       "mark": "iL",
       "badge": 0,
       "meta": "Quota 20 / jour",
-      "keywords": ["convertir", "ocr", "scanner", "reconnaissance"],
+      "keywords": [
+        "convertir",
+        "ocr",
+        "scanner",
+        "reconnaissance"
+      ],
       "url": "https://www.ilovepdf.com",
       "type": "web"
     },
@@ -269,7 +361,12 @@
       "mark": "Ac",
       "badge": 0,
       "meta": "Licence admin",
-      "keywords": ["annoter", "signer", "commenter", "corriger"],
+      "keywords": [
+        "annoter",
+        "signer",
+        "commenter",
+        "corriger"
+      ],
       "url": "https://acrobat.adobe.com",
       "type": "web"
     },
@@ -281,11 +378,16 @@
       "mark": "Px",
       "badge": 0,
       "meta": "Installé sur le poste",
-      "keywords": ["annoter", "corriger", "copie", "poste", "bureau"],
+      "keywords": [
+        "annoter",
+        "corriger",
+        "copie",
+        "poste",
+        "bureau"
+      ],
       "path": "C:\\Program Files\\Tracker Software\\PDF Editor\\PDFXEdit.exe",
       "type": "local"
     },
-
     {
       "id": "prim-a",
       "name": "PRIM-A",
@@ -295,7 +397,14 @@
       "icon": "sparkles",
       "badge": 0,
       "meta": "Académie de Strasbourg",
-      "keywords": ["ia", "primaire", "assistant", "premier degre", "academie", "strasbourg"],
+      "keywords": [
+        "ia",
+        "primaire",
+        "assistant",
+        "premier degre",
+        "academie",
+        "strasbourg"
+      ],
       "url": "https://prim-a.ac-strasbourg.fr/",
       "type": "web"
     },
@@ -308,7 +417,15 @@
       "icon": "globe",
       "badge": 0,
       "meta": "Ressources libres",
-      "keywords": ["forge", "communs", "partage", "ressources", "libre", "gitlab", "education"],
+      "keywords": [
+        "forge",
+        "communs",
+        "partage",
+        "ressources",
+        "libre",
+        "gitlab",
+        "education"
+      ],
       "url": "https://forge.apps.education.fr/",
       "type": "web"
     },
@@ -321,7 +438,14 @@
       "icon": "book",
       "badge": 0,
       "meta": "Compétences numériques",
-      "keywords": ["pix", "competences", "numerique", "evaluation", "certification", "eleves"],
+      "keywords": [
+        "pix",
+        "competences",
+        "numerique",
+        "evaluation",
+        "certification",
+        "eleves"
+      ],
       "url": "https://junior.pix.fr/",
       "type": "web"
     }

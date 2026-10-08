@@ -1,4 +1,4 @@
-# Portail Outils 2.0
+# StrasEdu 2.0
 
 Lanceur d'applications pédagogiques pour les établissements scolaires.
 Application de bureau Electron pour **Windows 11**, pensée pour des
@@ -61,7 +61,7 @@ pas *« le cinquième élément de la liste »*.
 - **Thème système** suivi en direct (`nativeTheme`), thème clair ou sombre
   forçable.
 - **Zone de notification** avec icône multi-résolutions (nette à 100, 150 et
-  200 %) ; fermer la fenêtre laisse le portail disponible.
+  200 %) ; fermer la fenêtre laisse StrasEdu disponible.
 - **Position et taille de fenêtre** mémorisées.
 - Densité d'affichage **Confort** ou **Compact**.
 
@@ -75,7 +75,7 @@ pas *« le cinquième élément de la liste »*.
   choisissent l'un ou l'autre : un seul fichier couvre donc l'installation
   manuelle par un enseignant et le déploiement GPO/SCCM.
 - Une version **portable**, sans installation ni raccourci.
-- Configuration par fichier `portail.config.json` ou variable
+- Configuration par fichier `strasedu.config.json` ou variable
   d'environnement, sans recompilation.
 
 ### Sécurité
@@ -113,12 +113,12 @@ renderer/app.js          logique d'interface : vues, recherche, palette, réglag
 admin/                   outil d'administration du catalogue (interface graphique)
 apps.json                catalogue livré (catégories, métadonnées, outils)
 icons/                   icône applicative et icônes de la zone de notification
-portail.config.json.example  modèle de configuration de déploiement
+strasedu.config.json.example  modèle de configuration de déploiement
 scripts/generate-icons.py    régénère icons/ depuis un dessin vectoriel
 scripts/preview.js           capture l'interface en images pour contrôle visuel
 scripts/preview-preload.js   jeu de données d'exemple pour la prévisualisation
 scripts/fix-builder-cache.ps1  prépare le cache electron-builder sous Windows
-scripts/install-portail.ps1    déploiement et mise à jour par copie de dossier
+scripts/install-strasedu.ps1    déploiement et mise à jour par copie de dossier
 scripts/update-catalog.ps1     validation et publication du catalogue (admin)
 docs/DEPLOIEMENT.md            guide de déploiement Windows 11
 docs/CATALOGUE.md              guide administrateur du catalogue
@@ -135,10 +135,10 @@ demande ni Node ni npm :
 
 | Fichier | Usage |
 | --- | --- |
-| `dist-admin\PortailOutils-Administration-2.0.0-setup.exe` | Installation classique (menu Démarrer, raccourci bureau). |
-| `dist-admin\PortailOutils-Administration-2.0.0-portable.exe` | Aucune installation : double-clic. |
+| `dist-admin\StrasEdu-Administration-2.0.0-setup.exe` | Installation classique (menu Démarrer, raccourci bureau). |
+| `dist-admin\StrasEdu-Administration-2.0.0-portable.exe` | Aucune installation : double-clic. |
 
-Onglets *Outils*, *Catégories*, *Établissement* : on compose le catalogue, on
+Onglets *Outils*, *Catégories*, *Application* : on compose le catalogue, on
 choisit les icônes et le logo officiel, puis on publie sur le partage réseau.
 La version est incrémentée automatiquement, et un catalogue invalide est refusé
 en nommant l'outil fautif.
@@ -155,7 +155,7 @@ npm run build:admin     # fabrique les deux exécutables dans dist-admin/
 
 # 2. Publier sur le partage réseau de l'établissement
 .\scripts\update-catalog.ps1 -AppsJsonPath .\apps.json `
-                             -SharePath "\\serveur\partage\PortailOutils\apps.json"
+                             -SharePath "\\serveur\partage\StrasEdu\apps.json"
 ```
 
 Le catalogue peut venir d'un **partage réseau**, d'un chemin local ou d'une URL
@@ -165,7 +165,7 @@ jeton d'authentification.
 Guide complet : [`docs/CATALOGUE.md`](docs/CATALOGUE.md).
 
 Le **binaire** ne change que quelques fois par an.
-`scripts/install-portail.ps1` est idempotent et compare les versions : relancé
+`scripts/install-strasedu.ps1` est idempotent et compare les versions : relancé
 sur un poste à jour, il ne copie rien. Vous pouvez donc le déclencher à chaque
 ouverture de session par GPO sans effet de bord.
 
@@ -182,9 +182,9 @@ npm run fix-builder-cache  # prépare le cache electron-builder (une fois)
 ## Fabrication des installateurs
 
 ```powershell
-npm run build           # Portail Outils            → dist\
+npm run build           # StrasEdu            → dist\
 npm run build:portable  #   version portable
-npm run build:admin     # Portail Outils Administration → dist-admin\
+npm run build:admin     # StrasEdu Administration → dist-admin\
 npm run build:all       # les trois
 ```
 
@@ -223,9 +223,8 @@ les champs nouveaux sont optionnels.
 
 ```jsonc
 {
-  "version": "2.0.0",              // comparée à la version distante
-  "establishment": "Collège Jean-Moulin",
-  "user": { "initials": "CM", "name": "C. Marchand" },
+  "version": "2.1.0",              // comparée à la version distante
+  "logo": "data:image/png;base64,…",  // optionnel : remplace la marque par défaut
 
   "categoryMeta": {                // icône, couleur et description par catégorie
     "Audio": {
@@ -235,7 +234,7 @@ les champs nouveaux sont optionnels.
     }
   },
 
-  "categories": ["Audio", "Vidéo", "IA", "Fichiers", "PDF"],
+  "categories": ["Audio", "Vidéo", "IA", "Fichiers", "PDF", "Services"],
 
   "apps": [
     {
@@ -270,7 +269,7 @@ Icônes de catégorie disponibles : `mic`, `video`, `sparkles`, `folder`,
 
 ## Données locales
 
-Stockées dans `%APPDATA%\Portail Outils\` :
+Stockées dans `%APPDATA%\StrasEdu\` :
 
 | Fichier | Contenu |
 | --- | --- |
@@ -279,10 +278,10 @@ Stockées dans `%APPDATA%\Portail Outils\` :
 | `favorites.json` | outils épinglés par l'utilisateur |
 | `usage.json` | nombre d'ouvertures et date du dernier accès |
 | `prefs.json` | thème, densité, menu latéral, Mica, position de fenêtre |
-| `logs/portail.log` | journal applicatif (rotation à 512 Ko) |
+| `logs/strasedu.log` | journal applicatif (rotation à 512 Ko) |
 
 Une **trace de démarrage** est écrite avant toute autre chose, dans
-`%TEMP%\PortailOutils-demarrage.log` et à côté de l'exécutable en version
+`%TEMP%\StrasEdu-demarrage.log` et à côté de l'exécutable en version
 portable. Elle indique chaque étape du lancement et permet de diagnostiquer un
 démarrage qui n'affiche rien — voir la section « Dépannage » de
 [`docs/DEPLOIEMENT.md`](docs/DEPLOIEMENT.md).

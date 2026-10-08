@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Portail Outils — pont de prévisualisation
+   StrasEdu — pont de prévisualisation
    --------------------------------------------------------------------------
    Remplace preload.js pour les captures d'écran : alimente l'interface avec
    le catalogue local et un jeu de données d'exemple, sans processus principal
@@ -43,14 +43,14 @@ const snapshot = {
     dark: theme === "dark",
     accent: "#0f9d63",
     version: "2.0.0",
-    catalogPath: "C:\\Users\\C.Marchand\\AppData\\Roaming\\Portail Outils\\apps.json",
+    catalogPath: "C:\\Users\\C.Marchand\\AppData\\Roaming\\StrasEdu\\apps.json",
     remoteConfigured: true,
     micaSupported: true
   },
   sync: { state: "ok", text: "Catalogue à jour (v2.0.0)", lastChecked: now }
 };
 
-contextBridge.exposeInMainWorld("portail", {
+contextBridge.exposeInMainWorld("strasedu", {
   getSnapshot: async () => JSON.parse(JSON.stringify(snapshot)),
   openApp: async () => ({ ok: true }),
   setFavorites: async (ids) => ids,

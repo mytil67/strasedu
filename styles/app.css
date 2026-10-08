@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Portail Outils — feuille de styles de l'interface
+   StrasEdu — feuille de styles de l'interface
    --------------------------------------------------------------------------
    Organisation :
      1.  Jetons de design (couleurs, typographie, rythme, élévation)
@@ -281,7 +281,7 @@ svg {
   box-shadow: var(--shadow-1);
 }
 
-/* Logo officiel de l'établissement : il remplace la marque du portail. */
+/* Logo officiel de l'établissement : il remplace la marque de StrasEdu. */
 .rail-logo.has-logo {
   background: var(--surface-3);
   overflow: hidden;
@@ -312,14 +312,6 @@ svg {
   font-weight: 650;
   letter-spacing: -0.01em;
   line-height: 1.15;
-}
-
-.rail-sub {
-  font-size: var(--fs-xs);
-  color: var(--text-3);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .rail-scroll {
@@ -440,52 +432,6 @@ svg {
   padding-top: var(--sp-3);
   margin-top: var(--sp-2);
   border-top: 1px solid var(--stroke);
-}
-
-.rail-user {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  min-width: 0;
-  flex: 1;
-}
-
-.avatar {
-  flex: none;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--r-full);
-  background: var(--accent-soft-strong);
-  color: var(--accent-ink);
-  font-size: var(--fs-sm);
-  font-weight: 650;
-  display: grid;
-  place-items: center;
-}
-
-.rail-usercol {
-  min-width: 0;
-}
-
-.rail-username {
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.rail-userorg {
-  font-size: var(--fs-xs);
-  color: var(--text-3);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.app[data-rail="compact"] .rail-user {
-  display: none;
 }
 
 /* Colonne principale ------------------------------------------------------ */
@@ -1683,8 +1629,7 @@ html[data-theme="dark"] .fav[aria-pressed="true"] {
   .rail-brandtext,
   .rail-item .rail-text,
   .rail-item .rail-count,
-  .rail-label,
-  .rail-user {
+  .rail-label {
     display: none;
   }
   .rail-item {

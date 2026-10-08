@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Portail Outils — captures d'écran de contrôle
+   StrasEdu — captures d'écran de contrôle
    --------------------------------------------------------------------------
    Ouvre l'interface avec un catalogue d'exemple, la pilote (navigation,
    palette de commandes, réglages) et enregistre une image par étape dans

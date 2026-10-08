@@ -1,11 +1,11 @@
 /* ==========================================================================
-   Portail Outils — application d'administration
+   StrasEdu — application d'administration
    --------------------------------------------------------------------------
    Fenêtre unique permettant au service informatique de composer le catalogue
    sans éditer de JSON :
 
      • ajouter, modifier, supprimer un outil ;
-     • lui affecter une icône parmi celles du portail ;
+     • lui affecter une icône parmi celles de StrasEdu ;
      • créer et paramétrer les catégories (icône, couleur, description) ;
      • définir le logo officiel de l'établissement ;
      • publier le catalogue sur le partage réseau, version incrémentée.
@@ -23,7 +23,7 @@ const path = require("path");
 
 const { normalizeCatalog, asText, safeLogo, MAX_LOGO_CHARS } = require("../lib/catalog");
 
-const APP_NAME = "Portail Outils Administration";
+const APP_NAME = "StrasEdu Administration";
 const PROJECT_DIR = path.resolve(__dirname, "..");
 
 /**
@@ -81,8 +81,8 @@ function prefsFile() {
  */
 function environmentOverrides() {
   const forced = {};
-  if (process.env.PORTAIL_ADMIN_CATALOG) forced.lastFilePath = process.env.PORTAIL_ADMIN_CATALOG;
-  if (process.env.PORTAIL_ADMIN_SHARE) forced.sharePath = process.env.PORTAIL_ADMIN_SHARE;
+  if (process.env.STRASEDU_ADMIN_CATALOG) forced.lastFilePath = process.env.STRASEDU_ADMIN_CATALOG;
+  if (process.env.STRASEDU_ADMIN_SHARE) forced.sharePath = process.env.STRASEDU_ADMIN_SHARE;
   return forced;
 }
 
@@ -219,7 +219,7 @@ function createWindow() {
     title: APP_NAME,
     backgroundColor: nativeTheme.shouldUseDarkColors ? "#171a1c" : "#f3f6f5",
     autoHideMenuBar: true,
-    icon: assetPath("icons", "icon.ico"),
+    icon: assetPath("icons-admin", "icon.ico"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -419,7 +419,7 @@ function registerIpc() {
     if (image.isEmpty()) return { ok: false, error: "Image illisible." };
 
     const size = image.getSize();
-    // Réduction à 128 px de haut : suffisant pour la vignette du portail, et
+    // Réduction à 128 px de haut : suffisant pour la vignette de StrasEdu, et
     // le logo reste petit dans le catalogue publié.
     const resized = size.height > 128 ? image.resize({ height: 128, quality: "best" }) : image;
     const dataUri = resized.toDataURL();

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Portail Outils — génération du jeu d'icônes et de l'écran de démarrage.
+StrasEdu — génération du jeu d'icônes et de l'écran de démarrage.
 
 Produit, à partir d'un dessin vectoriel décrit en Python (Pillow) :
   icons/icon.ico      icône multi-résolutions 16 -> 256 px (installateur, .exe, raccourcis)
@@ -26,9 +26,13 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 # ─── Charte ──────────────────────────────────────────────────────────────────
-# Dégradé de la tuile : vert « Portail outils » (#2AD783) vers un vert plus dense.
-GRADIENT_START = (66, 226, 148)
-GRADIENT_END = (14, 158, 96)
+# Chaque application porte sa couleur : verte pour les enseignants, violette
+# pour l'atelier d'administration, afin qu'on ne les confonde jamais dans la
+# barre des tâches ni dans le menu Démarrer.
+PALETTES = {
+    "icons": ((66, 226, 148), (14, 158, 96)),           # vert StrasEdu
+    "icons-admin": ((167, 139, 250), (109, 40, 217)),   # violet royal
+}
 GLYPH = (255, 255, 255, 255)
 
 # Écran de démarrage
@@ -57,8 +61,9 @@ def _rounded_mask(size: int, radius: float) -> Image.Image:
     return mask
 
 
-def _diagonal_gradient(size: int) -> Image.Image:
+def _diagonal_gradient(size: int, palette) -> Image.Image:
     """Dégradé linéaire du coin haut-gauche vers le coin bas-droit."""
+    start, end = palette
     base = Image.new("RGB", (size, size))
     pixels = base.load()
     span = (size - 1) * 2
@@ -67,7 +72,7 @@ def _diagonal_gradient(size: int) -> Image.Image:
             t = (x + y) / span
             pixels[x, y] = tuple(
                 int(round(a + (b - a) * t))
-                for a, b in zip(GRADIENT_START, GRADIENT_END)
+                for a, b in zip(start, end)
             )
     return base
 
@@ -93,10 +98,10 @@ def _glyph_layer(size: int) -> Image.Image:
     return layer
 
 
-def render(size: int) -> Image.Image:
+def render(size: int, palette) -> Image.Image:
     """Rend l'icône à la taille demandée, en RGBA."""
     work = MASTER
-    gradient = _diagonal_gradient(work).convert("RGBA")
+    gradient = _diagonal_gradient(work, palette).convert("RGBA")
     gradient.putalpha(_rounded_mask(work, work * CORNER_RATIO))
     gradient.alpha_composite(_glyph_layer(work))
     return gradient.resize((size, size), Image.LANCZOS)
@@ -116,7 +121,7 @@ def _font(size: int, bold: bool = False) -> ImageFont.ImageFont:
     return ImageFont.load_default()
 
 
-def render_splash() -> Image.Image:
+def render_splash(palette) -> Image.Image:
     """
     Écran affiché par le lanceur portable pendant l'extraction.
 
@@ -129,11 +134,11 @@ def render_splash() -> Image.Image:
     draw = ImageDraw.Draw(image)
 
     # Bandeau supérieur aux couleurs de la marque.
-    draw.rectangle((0, 0, width, 5), fill=GRADIENT_END)
+    draw.rectangle((0, 0, width, 5), fill=palette[1])
 
     # Icône applicative centrée, avec sa propre ombre portée.
     icon_size = 96
-    icon = render(icon_size)
+    icon = render(icon_size, palette)
     shadow = Image.new("RGBA", (icon_size + 24, icon_size + 24), (0, 0, 0, 0))
     ImageDraw.Draw(shadow).rounded_rectangle(
         (12, 15, 12 + icon_size, 15 + icon_size),
@@ -152,7 +157,7 @@ def render_splash() -> Image.Image:
         left, top, right, bottom = draw.textbbox((0, 0), text, font=font)
         draw.text(((width - (right - left)) // 2 - left, y), text, font=font, fill=color)
 
-    centered("Portail outils", title_font, 190, SPLASH_TITLE)
+    centered("StrasEdu", title_font, 190, SPLASH_TITLE)
     centered("Chargement de l'application…", sub_font, 236, SPLASH_SUB)
     centered(
         "Cette première ouverture peut prendre une minute",
@@ -164,34 +169,47 @@ def render_splash() -> Image.Image:
     return image
 
 
+def write_set(directory: Path, palette, with_tray: bool) -> None:
+    """Écrit icône multi-résolutions et icône de référence d'une application."""
+    directory.mkdir(parents=True, exist_ok=True)
+    master = render(MASTER, palette)
+
+    master.save(
+        directory / "icon.ico",
+        format="ICO",
+        sizes=[(s, s) for s in sorted({*ICO_SIZES, 256})],
+    )
+    master.resize((512, 512), Image.LANCZOS).save(directory / "icon.png", format="PNG")
+
+    # La zone de notification n'existe que dans l'application des enseignants.
+    if with_tray:
+        for suffix, px in (("", 16), ("@2x", 32), ("@3x", 48)):
+            master.resize((px, px), Image.LANCZOS).save(
+                directory / f"tray{suffix}.png", format="PNG"
+            )
+
+
 def main() -> int:
     root = Path(__file__).resolve().parent.parent
-    out = root / "icons"
-    out.mkdir(parents=True, exist_ok=True)
 
-    master = render(MASTER)
-
-    ico_sizes = sorted({*ICO_SIZES, 256})
-    master.save(out / "icon.ico", format="ICO", sizes=[(s, s) for s in ico_sizes])
-
-    master.resize((512, 512), Image.LANCZOS).save(out / "icon.png", format="PNG")
-
-    for suffix, px in (("", 16), ("@2x", 32), ("@3x", 48)):
-        master.resize((px, px), Image.LANCZOS).save(
-            out / f"tray{suffix}.png", format="PNG"
-        )
+    written = []
+    for name, palette in PALETTES.items():
+        directory = root / name
+        write_set(directory, palette, with_tray=name == "icons")
+        written.append(directory)
 
     # Écran de démarrage de la version portable : BMP 24 bits obligatoire,
     # le greffon BgImage de NSIS ne lit pas la transparence.
     build = root / "build"
     build.mkdir(parents=True, exist_ok=True)
-    render_splash().save(build / "splash.bmp", format="BMP")
+    splash = build / "splash.bmp"
+    render_splash(PALETTES["icons"]).save(splash, format="BMP")
 
-    print(f"Icones generees dans {out}:")
-    for name in sorted(p.name for p in out.iterdir() if p.is_file()):
-        print(f"  - {name} ({(out / name).stat().st_size} octets)")
-    print(f"Ecran de demarrage : {build / 'splash.bmp'} "
-          f"({(build / 'splash.bmp').stat().st_size} octets)")
+    for directory in written:
+        print(f"Icones generees dans {directory}:")
+        for name in sorted(p.name for p in directory.iterdir() if p.is_file()):
+            print(f"  - {name} ({(directory / name).stat().st_size} octets)")
+    print(f"Ecran de demarrage : {splash} ({splash.stat().st_size} octets)")
     return 0
 
 

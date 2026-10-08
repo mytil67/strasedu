@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Portail Outils — auto-vérification de l'application d'administration
+   StrasEdu — auto-vérification de l'application d'administration
    --------------------------------------------------------------------------
    Pilote l'interface comme le ferait un administrateur, sur un catalogue
    temporaire, et vérifie chaque capacité demandée :
@@ -37,8 +37,8 @@ fs.mkdirSync(SHARE, { recursive: true });
 fs.mkdirSync(SHOTS, { recursive: true });
 fs.copyFileSync(path.join(ROOT, "apps.json"), CATALOG);
 
-process.env.PORTAIL_ADMIN_CATALOG = CATALOG;
-process.env.PORTAIL_ADMIN_SHARE = SHARE;
+process.env.STRASEDU_ADMIN_CATALOG = CATALOG;
+process.env.STRASEDU_ADMIN_SHARE = SHARE;
 
 const { app, BrowserWindow, nativeImage } = require("electron");
 app.setPath("userData", path.join(WORK, "profil"));
@@ -273,7 +273,7 @@ async function run(win) {
   const withLogo = JSON.parse(await js("JSON.stringify(window.__adminState.catalog)"));
   withLogo.logo = reduced;
   fs.writeFileSync(path.join(SHARE, "apps.json"), JSON.stringify(withLogo, null, 2), "utf-8");
-  await click('[data-tab="establishment"]');
+  await click('[data-tab="application"]');
   await wait(200);
   await click('[data-act="share-load"]');
   await wait(900);
@@ -285,7 +285,7 @@ async function run(win) {
   check("cible d'enregistrement inchangée après chargement du partage",
     await js("window.__adminState.filePath") === CATALOG,
     await js("window.__adminState.filePath"));
-  await shot("03-etablissement");
+  await shot("03-application");
 
   /* ── 6. Enregistrement ─────────────────────────────────────────────────── */
   step("enregistrement");

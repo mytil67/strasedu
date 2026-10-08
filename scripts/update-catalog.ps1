@@ -1,5 +1,5 @@
 ﻿# ═══════════════════════════════════════════════════════════════════════════
-# Portail Outils — publication du catalogue (côté administrateur)
+# StrasEdu — publication du catalogue (côté administrateur)
 # ---------------------------------------------------------------------------
 # Valide le catalogue, incrémente sa version, puis le publie :
 #   • sur un partage réseau   (recommandé en établissement : ni serveur web,
@@ -19,7 +19,7 @@
 #
 #   # Publier sur un partage réseau
 #   .\update-catalog.ps1 -AppsJsonPath ..\..\apps.json `
-#                        -SharePath "\\serveur\partage\PortailOutils\apps.json"
+#                        -SharePath "\\serveur\partage\StrasEdu\apps.json"
 #
 #   # Publier vers GitLab
 #   .\update-catalog.ps1 -AppsJsonPath ..\..\apps.json `
@@ -235,7 +235,7 @@ if ($SharePath) {
     Write-Host "Les postes le récupéreront à leur prochaine vérification (30 min),"
     Write-Host "ou immédiatement via Réglages > Catalogue > Vérifier."
     Write-Host ""
-    Write-Host "Adresse à renseigner dans portail.config.json :" -ForegroundColor Yellow
+    Write-Host "Adresse à renseigner dans strasedu.config.json :" -ForegroundColor Yellow
     Write-Host ('  {{ "remoteAppsUrl": "{0}" }}' -f $target)
     exit 0
 }
@@ -249,7 +249,7 @@ if ($GitLabUrl -and $ProjectId -and $Token) {
     $body = @{
         branch         = $Branch
         content        = $updated
-        commit_message = "Catalogue Portail Outils v$($json.version)"
+        commit_message = "Catalogue StrasEdu v$($json.version)"
     } | ConvertTo-Json
 
     $headers = @{ "PRIVATE-TOKEN" = $Token; "Content-Type" = "application/json" }

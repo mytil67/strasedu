@@ -1,4 +1,4 @@
-# Déployer Portail Outils sur Windows 11
+# Déployer StrasEdu sur Windows 11
 
 Guide destiné au service informatique de l'établissement.
 
@@ -13,13 +13,13 @@ C'est la question qui commande tout le reste. Il faut distinguer deux choses.
 | **Le catalogue** : ajouter un outil, corriger une URL, réordonner les catégories, changer une description | Souvent | Une poussée de `apps.json` | **Jamais** |
 | **L'application** : interface, sécurité, correctif | Quelques fois par an | Script de parc ou installateur | Automatique, sans intervention |
 
-**Le catalogue porte l'essentiel de la vie du portail.** Une nouvelle version de
+**Le catalogue porte l'essentiel de la vie de StrasEdu.** Une nouvelle version de
 `apps.json` est récupérée par tous les postes dans les 30 minutes (ou
 immédiatement, au premier lancement suivant) — voir §4. Vous n'avez donc pas à
 redéployer quoi que ce soit pour ajouter ou retirer un outil.
 
 **Le binaire ne change que rarement.** Pour ces quelques fois par an, le script
-`scripts/install-portail.ps1` est **idempotent** : relancé sur un poste déjà à
+`scripts/install-strasedu.ps1` est **idempotent** : relancé sur un poste déjà à
 jour, il ne copie rien et se termine en une seconde. Vous pouvez donc le
 déclencher à chaque ouverture de session par GPO, sans effet de bord.
 
@@ -40,32 +40,32 @@ particulier).
 
 | Fichier produit | Portée | Droits admin | Usage |
 | --- | --- | --- | --- |
-| `PortailOutils-2.0.0-x64-setup.exe` | Au choix à l'installation | Seulement pour « tous les utilisateurs » | Installation manuelle ou déploiement de parc. Dossier fixe : `%LOCALAPPDATA%\Programs\Portail Outils` ou `C:\Program Files\Portail Outils`. |
-| `PortailOutils-2.0.0-portable.exe` | Aucune | Non | Poste partagé ou clé USB. Aucune installation, aucun raccourci. |
+| `StrasEdu-2.0.0-x64-setup.exe` | Au choix à l'installation | Seulement pour « tous les utilisateurs » | Installation manuelle ou déploiement de parc. Dossier fixe : `%LOCALAPPDATA%\Programs\StrasEdu` ou `C:\Program Files\StrasEdu`. |
+| `StrasEdu-2.0.0-portable.exe` | Aucune | Non | Poste partagé ou clé USB. Aucune installation, aucun raccourci. |
 
 ### Voie B — le script de déploiement (recommandée pour un parc)
 
-`scripts/install-portail.ps1` copie le dossier de l'application, crée les
+`scripts/install-strasedu.ps1` copie le dossier de l'application, crée les
 raccourcis et l'entrée de désinstallation. Aucun assistant, aucune écriture de
 registre pendant la copie, aucun droit administrateur en mode utilisateur.
 
 ```powershell
 # Première installation sur un poste
-.\install-portail.ps1 -Source "\\serveur\partage\PortailOutils" `
+.\install-strasedu.ps1 -Source "\\serveur\partage\StrasEdu" `
                       -RemoteAppsUrl "https://…/apps.json"
 
 # Mise à jour : la même commande. Elle ne copie que si la version a changé.
-.\install-portail.ps1 -Source "\\serveur\partage\PortailOutils"
+.\install-strasedu.ps1 -Source "\\serveur\partage\StrasEdu"
 
 # Pour tous les utilisateurs du poste (élévation requise)
-.\install-portail.ps1 -Source "\\serveur\partage\PortailOutils" -AllUsers
+.\install-strasedu.ps1 -Source "\\serveur\partage\StrasEdu" -AllUsers
 
 # Savoir si une mise à jour est disponible, sans rien modifier
 # (code de sortie 0 = à jour, 10 = mise à jour disponible)
-.\install-portail.ps1 -Source "\\serveur\partage\PortailOutils" -CheckOnly
+.\install-strasedu.ps1 -Source "\\serveur\partage\StrasEdu" -CheckOnly
 
 # Désinstallation
-.\install-portail.ps1 -Uninstall
+.\install-strasedu.ps1 -Uninstall
 ```
 
 Chaque exécution, même sans changement de version :
@@ -76,7 +76,7 @@ Chaque exécution, même sans changement de version :
 
 Le script est donc **réparateur** : un poste dérivé revient dans l'état voulu à
 la prochaine ouverture de session. Le journal est écrit dans
-`%TEMP%\portail-deploiement.log`, ce qui permet de le rapatrier depuis 2000
+`%TEMP%\strasedu-deploiement.log`, ce qui permet de le rapatrier depuis 2000
 postes.
 
 > Le script se copie lui-même dans `<installation>\_deploy\`, de sorte que la
@@ -94,8 +94,8 @@ support et des désinstallations qui fonctionnent partout.
 
 | Mode choisi | Dossier d'installation |
 | --- | --- |
-| Pour moi uniquement | `%LOCALAPPDATA%\Programs\Portail Outils` |
-| Pour tous les utilisateurs | `C:\Program Files\Portail Outils` |
+| Pour moi uniquement | `%LOCALAPPDATA%\Programs\StrasEdu` |
+| Pour tous les utilisateurs | `C:\Program Files\StrasEdu` |
 
 > **L'installation pour l'utilisateur courant peut être refusée** sur un poste
 > protégé : l'installateur n'est pas signé, et certains antivirus ou règles
@@ -107,17 +107,17 @@ support et des désinstallations qui fonctionnent partout.
 
 ```powershell
 # Pour l'utilisateur courant uniquement (aucun droit administrateur)
-.\PortailOutils-2.0.0-x64-setup.exe /S /currentuser
+.\StrasEdu-2.0.0-x64-setup.exe /S /currentuser
 
 # Pour tous les utilisateurs du poste (invite d'élévation)
-.\PortailOutils-2.0.0-x64-setup.exe /S /allusers
+.\StrasEdu-2.0.0-x64-setup.exe /S /allusers
 
 # Désinstallation silencieuse
-& "C:\Program Files\Portail Outils\Uninstall Portail Outils.exe" /S
+& "C:\Program Files\StrasEdu\Uninstall StrasEdu.exe" /S
 ```
 
 Un dossier particulier reste imposable **en ligne de commande**, pour un cas
-particulier : `/D=C:\Outils\Portail`. `/D` doit être le **dernier** argument et
+particulier : `/D=C:\Outils\StrasEdu`. `/D` doit être le **dernier** argument et
 ne pas être entouré de guillemets.
 
 > **Si l'installateur échoue sur un fichier**, utilisez la voie B (§1) : elle
@@ -128,8 +128,8 @@ ne pas être entouré de guillemets.
 ### GPO / SCCM / Intune
 
 - **SCCM / Intune** : programme d'installation
-  `PortailOutils-2.0.0-x64-setup.exe`, arguments `/S /allusers`, détection sur
-  l'existence de `C:\Program Files\Portail Outils\Portail Outils.exe`.
+  `StrasEdu-2.0.0-x64-setup.exe`, arguments `/S /allusers`, détection sur
+  l'existence de `C:\Program Files\StrasEdu\StrasEdu.exe`.
 - **GPO (script de démarrage ordinateur)** : exécuter l'installateur avec
   `/S /allusers` depuis un partage `\\serveur\netlogon`.
 - Les données de chaque utilisateur (favoris, réglages, historique) restent dans
@@ -164,7 +164,7 @@ Variantes utiles :
 Vérifier la signature après fabrication :
 
 ```powershell
-Get-AuthenticodeSignature .\dist\PortailOutils-2.0.0-x64-setup.exe |
+Get-AuthenticodeSignature .\dist\StrasEdu-2.0.0-x64-setup.exe |
     Format-List Status, SignerCertificate
 ```
 
@@ -176,7 +176,7 @@ Get-AuthenticodeSignature .\dist\PortailOutils-2.0.0-x64-setup.exe |
 > ne s'applique qu'aux fichiers marqués « venus d'Internet ».
 
 ```powershell
-Get-FileHash .\dist\PortailOutils-2.0.0-x64-setup.exe -Algorithm SHA256
+Get-FileHash .\dist\StrasEdu-2.0.0-x64-setup.exe -Algorithm SHA256
 ```
 
 ---
@@ -190,8 +190,8 @@ Pour mettre le catalogue à jour à distance, deux méthodes au choix.
 
 ### Méthode A — fichier de configuration (recommandé)
 
-Créez `portail.config.json` **à côté de l'exécutable**, dans
-`C:\Program Files\Portail Outils\resources\` :
+Créez `strasedu.config.json` **à côté de l'exécutable**, dans
+`C:\Program Files\StrasEdu\resources\` :
 
 ```json
 {
@@ -215,13 +215,13 @@ Créez `portail.config.json` **à côté de l'exécutable**, dans
 
 ```powershell
 [Environment]::SetEnvironmentVariable(
-  "PORTAIL_REMOTE_URL",
+  "STRASEDU_REMOTE_URL",
   "https://gitlab.ac-strasbourg.fr/api/v4/projects/123/repository/files/apps.json/raw?ref=main",
   [EnvironmentVariableTarget]::Machine
 )
 ```
 
-`PORTAIL_REMOTE_URL` est prioritaire sur `portail.config.json`.
+`STRASEDU_REMOTE_URL` est prioritaire sur `strasedu.config.json`.
 
 ### Publier une nouvelle version du catalogue
 
@@ -257,7 +257,7 @@ l'intervalle, et sur la première minute après l'ouverture de session). Sans ce
 seconde, puis resteraient en cadence.
 
 Pour réduire encore la charge, vous pouvez porter `checkIntervalMinutes` à 60
-dans `portail.config.json` : le catalogue change rarement, et une vérification
+dans `strasedu.config.json` : le catalogue change rarement, et une vérification
 horaire suffit largement.
 
 ---
@@ -279,7 +279,7 @@ l'application complète, sans installateur.
 
 ```powershell
 npm run build
-robocopy .\dist\win-unpacked "\\serveur\partage\PortailOutils" /MIR
+robocopy .\dist\win-unpacked "\\serveur\partage\StrasEdu" /MIR
 ```
 
 Les postes le récupèrent à leur prochaine ouverture de session. Un poste déjà à
@@ -288,8 +288,8 @@ jour ne copie rien : l'opération prend une seconde.
 ### Déploiement par GPO (script de démarrage ordinateur)
 
 ```powershell
-\\serveur\netlogon\PortailOutils\install-portail.ps1 `
-    -Source "\\serveur\partage\PortailOutils" `
+\\serveur\netlogon\StrasEdu\install-strasedu.ps1 `
+    -Source "\\serveur\partage\StrasEdu" `
     -RemoteAppsUrl "https://…/apps.json" `
     -AllUsers -Quiet
 ```
@@ -352,12 +352,12 @@ npm run build:portable  # version portable seule
 
 | Élément | Chemin |
 | --- | --- |
-| Application (par machine) | `C:\Program Files\Portail Outils\` |
-| Application (par utilisateur) | `%LOCALAPPDATA%\Programs\Portail Outils\` |
-| Configuration | `…\Portail Outils\resources\portail.config.json` |
-| Données utilisateur | `%APPDATA%\Portail Outils\` |
-| Journal applicatif | `%APPDATA%\Portail Outils\logs\portail.log` |
-| **Trace de démarrage** | `%TEMP%\PortailOutils-demarrage.log` et, en version portable, à côté de l'exécutable |
+| Application (par machine) | `C:\Program Files\StrasEdu\` |
+| Application (par utilisateur) | `%LOCALAPPDATA%\Programs\StrasEdu\` |
+| Configuration | `…\StrasEdu\resources\strasedu.config.json` |
+| Données utilisateur | `%APPDATA%\StrasEdu\` |
+| Journal applicatif | `%APPDATA%\StrasEdu\logs\strasedu.log` |
+| **Trace de démarrage** | `%TEMP%\StrasEdu-demarrage.log` et, en version portable, à côté de l'exécutable |
 
 ### Diagnostiquer un démarrage qui n'affiche rien
 
@@ -392,7 +392,7 @@ launcher démarré. Comptez de trente secondes à deux minutes selon l'antivirus
 
 - Ne relancez pas l'exécutable : chaque double-clic lance une nouvelle
   extraction complète.
-- Vérifiez `dist\PortailOutils-demarrage.log` (à côté de l'exécutable portable) :
+- Vérifiez `dist\StrasEdu-demarrage.log` (à côté de l'exécutable portable) :
   s'il contient les lignes de démarrage, l'application tourne et sa fenêtre est
   ouverte ou réduite dans la zone de notification.
 - Pour un usage quotidien, utilisez l'installateur.
@@ -400,7 +400,7 @@ launcher démarré. Comptez de trente secondes à deux minutes selon l'antivirus
 ### Rien ne se passe au second lancement
 
 L'application ne se ferme pas quand on ferme sa fenêtre : elle reste dans la
-zone de notification, et le portail n'accepte qu'une seule instance. Un nouveau
+zone de notification, et StrasEdu n'accepte qu'une seule instance. Un nouveau
 lancement ramène simplement la fenêtre existante au premier plan.
 
 Pour quitter réellement : clic droit sur l'icône de la notification → **Quitter**.
@@ -411,7 +411,7 @@ Signez l'exécutable (§3). À défaut, diffusez-le par partage réseau ou GPO.
 
 ### L'application s'ouvre puis rien ne se passe
 
-Elle est probablement déjà lancée : le portail n'accepte qu'une seule instance
+Elle est probablement déjà lancée : StrasEdu n'accepte qu'une seule instance
 et ramène la fenêtre existante au premier plan. Vérifiez aussi la zone de
 notification : fermer la fenêtre ne quitte pas l'application.
 
@@ -424,7 +424,7 @@ catalogue continue de fonctionner.
 ### Le catalogue distant n'est jamais récupéré
 
 1. *Réglages → Catalogue* indique l'état de la dernière synchronisation.
-2. Consultez `%APPDATA%\Portail Outils\logs\portail.log`.
+2. Consultez `%APPDATA%\StrasEdu\logs\strasedu.log`.
 3. Vérifiez que le poste accède à l'URL (`Invoke-WebRequest $url`).
 4. Une entrée de catalogue invalide est ignorée silencieusement dans
    l'interface mais **comptée dans le journal** : cherchez « entrée(s) du
@@ -433,8 +433,8 @@ catalogue continue de fonctionner.
 ### Revenir à la version précédente du catalogue
 
 ```powershell
-Copy-Item "$env:APPDATA\Portail Outils\apps.previous.json" `
-          "$env:APPDATA\Portail Outils\apps.json" -Force
+Copy-Item "$env:APPDATA\StrasEdu\apps.previous.json" `
+          "$env:APPDATA\StrasEdu\apps.json" -Force
 ```
 
 Puis relancez l'application. Si la copie locale est corrompue, elle est
@@ -444,7 +444,7 @@ main.
 ### Repartir d'un profil propre
 
 ```powershell
-Remove-Item "$env:APPDATA\Portail Outils" -Recurse -Force
+Remove-Item "$env:APPDATA\StrasEdu" -Recurse -Force
 ```
 
 ---
@@ -459,12 +459,12 @@ Remove-Item "$env:APPDATA\Portail Outils" -Recurse -Force
 - [ ] **Binaire signé** et `Get-AuthenticodeSignature` en `Valid`. C'est le
       point le plus critique à l'échelle d'un parc.
 - [ ] Dossier `dist\win-unpacked` publié sur le partage réseau.
-- [ ] `portail.config.json` déployé et **relu par l'application** (vérifier
+- [ ] `strasedu.config.json` déployé et **relu par l'application** (vérifier
       « configuration lue — catalogue distant : configuré » dans la trace de
       démarrage ; un BOM en tête de fichier suffisait à l'ignorer avant la
       version 2.0.0 finale).
 - [ ] Test sur un poste Windows 11 avec un **compte non administrateur**.
 - [ ] Vérification du rendu à 100 %, 150 % et 200 % de mise à l'échelle.
 - [ ] Vague 1 sur 5 à 10 postes, puis vague 2 sur un site complet.
-- [ ] Journal `%TEMP%\portail-deploiement.log` rapatrié depuis un poste de test.
+- [ ] Journal `%TEMP%\strasedu-deploiement.log` rapatrié depuis un poste de test.
 - [ ] Trace de démarrage relue après le premier lancement.

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Portail Outils — publication d'une version sur GitHub
+   StrasEdu — publication d'une version sur GitHub
    --------------------------------------------------------------------------
    Crée la release du tag demandé et y dépose les exécutables produits par
    `npm run build:all`, accompagnés de leurs empreintes SHA-256.
@@ -56,7 +56,7 @@ async function api(token, method, url, body, extraHeaders) {
       Authorization: "Bearer " + token,
       Accept: "application/vnd.github+json",
       "X-GitHub-Api-Version": "2022-11-28",
-      "User-Agent": "PortailOutils-release"
+      "User-Agent": "StrasEdu-release"
     },
     extraHeaders || {}
   );
@@ -98,10 +98,10 @@ async function main() {
   const tag = tagArg || "v" + version;
 
   const assets = [
-    ["dist/PortailOutils-" + version + "-x64-setup.exe", "Portail Outils — installateur (enseignants)"],
-    ["dist/PortailOutils-" + version + "-portable.exe", "Portail Outils — version portable (enseignants)"],
-    ["dist-admin/PortailOutils-Administration-" + version + "-setup.exe", "Administration — installateur"],
-    ["dist-admin/PortailOutils-Administration-" + version + "-portable.exe", "Administration — version portable"]
+    ["dist/StrasEdu-" + version + "-x64-setup.exe", "StrasEdu — installateur (enseignants)"],
+    ["dist/StrasEdu-" + version + "-portable.exe", "StrasEdu — version portable (enseignants)"],
+    ["dist-admin/StrasEdu-Administration-" + version + "-setup.exe", "Administration — installateur"],
+    ["dist-admin/StrasEdu-Administration-" + version + "-portable.exe", "Administration — version portable"]
   ].map(([relative, description]) => {
     const file = path.join(ROOT, relative);
     if (!fs.existsSync(file)) throw new Error("fichier absent : " + relative + " (lancez npm run build:all)");
@@ -132,17 +132,17 @@ async function main() {
   const base = "https://api.github.com/repos/" + OWNER + "/" + REPO;
 
   const body = [
-    "## Portail Outils " + version,
+    "## StrasEdu " + version,
     "",
     "### Pour les enseignants",
     "",
-    "- `PortailOutils-" + version + "-x64-setup.exe` — installation (menu Démarrer et raccourci bureau).",
-    "- `PortailOutils-" + version + "-portable.exe` — sans installation.",
+    "- `StrasEdu-" + version + "-x64-setup.exe` — installation (menu Démarrer et raccourci bureau).",
+    "- `StrasEdu-" + version + "-portable.exe` — sans installation.",
     "",
     "### Pour le service informatique",
     "",
-    "- `PortailOutils-Administration-" + version + "-setup.exe` — outil d'administration du catalogue.",
-    "- `PortailOutils-Administration-" + version + "-portable.exe` — le même, sans installation.",
+    "- `StrasEdu-Administration-" + version + "-setup.exe` — outil d'administration du catalogue.",
+    "- `StrasEdu-Administration-" + version + "-portable.exe` — le même, sans installation.",
     "",
     "Au premier lancement, l'outil d'administration travaille sur une copie du catalogue",
     "livré, dans le profil de l'utilisateur. Le catalogue des postes n'est modifié que par",
@@ -153,7 +153,7 @@ async function main() {
     "`SHA256SUMS.txt` contient l'empreinte de chaque fichier :",
     "",
     "```powershell",
-    "Get-FileHash .\\PortailOutils-Administration-" + version + "-setup.exe -Algorithm SHA256",
+    "Get-FileHash .\\StrasEdu-Administration-" + version + "-setup.exe -Algorithm SHA256",
     "```",
     "",
     "> Les exécutables ne sont pas signés : SmartScreen affiche un avertissement au premier",
@@ -173,7 +173,7 @@ async function main() {
     release = await api(token, "POST", base + "/releases", {
       tag_name: tag,
       target_commitish: "main",
-      name: "Portail Outils " + version,
+      name: "StrasEdu " + version,
       body,
       draft: false,
       prerelease: false
@@ -201,7 +201,7 @@ async function main() {
           Authorization: "Bearer " + token,
           "Content-Type": "application/octet-stream",
           "Content-Length": String(asset.size),
-          "User-Agent": "PortailOutils-release"
+          "User-Agent": "StrasEdu-release"
         },
         body: fs.readFileSync(asset.file)
       }

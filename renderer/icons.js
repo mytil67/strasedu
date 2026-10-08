@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Portail Outils — jeu d'icônes
+   StrasEdu — jeu d'icônes
    --------------------------------------------------------------------------
    Icônes dessinées sur une grille de 24 x 24, en traits de 1,7 px, pour rester
    lisibles de 16 à 48 px. Aucune dépendance externe : le catalogue peut nommer

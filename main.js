@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Portail Outils — processus principal Electron
+   StrasEdu — processus principal Electron
    --------------------------------------------------------------------------
    Responsabilités :
      • charger, valider et mettre à jour le catalogue d'outils ;
@@ -45,7 +45,7 @@ const http = require("http");
      • le dossier de l'exécutable — indispensable pour la version portable,
        dont le dossier temporaire d'extraction disparaît à la fermeture.
 */
-const TRACE_NAME = "PortailOutils-demarrage.log";
+const TRACE_NAME = "StrasEdu-demarrage.log";
 const BOM = "\ufeff";
 
 const TRACE_TARGETS = (function () {
@@ -69,7 +69,7 @@ function trace(step) {
     }
   }
   try {
-    process.stdout.write("[Portail] " + step + os.EOL);
+    process.stdout.write("[StrasEdu] " + step + os.EOL);
   } catch {
     /* pas de console : sans conséquence */
   }
@@ -83,8 +83,8 @@ trace(
 
 /* ─── Constantes ─────────────────────────────────────────────────────────── */
 
-const APP_ID = "fr.strasedu.portail-outils";
-const APP_NAME = "Portail Outils";
+const APP_ID = "fr.strasedu.app";
+const APP_NAME = "StrasEdu";
 
 const MAX_CATALOG_BYTES = 2 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 12000;
@@ -94,13 +94,13 @@ const DEFAULT_CHECK_INTERVAL_MIN = 30;
 /* ─── Configuration externe ──────────────────────────────────────────────── */
 /*
    Ordre de priorité pour l'URL du catalogue distant :
-     1. le fichier portail.config.json livré à côté de l'application ;
-     2. la variable d'environnement PORTAIL_REMOTE_URL (déploiement par GPO).
+     1. le fichier strasedu.config.json livré à côté de l'application ;
+     2. la variable d'environnement STRASEDU_REMOTE_URL (déploiement par GPO).
 */
 function readDeployConfig() {
   const candidates = [
-    path.join(process.resourcesPath || "", "portail.config.json"),
-    path.join(__dirname, "portail.config.json")
+    path.join(process.resourcesPath || "", "strasedu.config.json"),
+    path.join(__dirname, "strasedu.config.json")
   ];
   for (const candidate of candidates) {
     try {
@@ -117,7 +117,7 @@ function readDeployConfig() {
 }
 
 const DEPLOY = readDeployConfig();
-const REMOTE_APPS_URL = process.env.PORTAIL_REMOTE_URL || DEPLOY.remoteAppsUrl || "";
+const REMOTE_APPS_URL = process.env.STRASEDU_REMOTE_URL || DEPLOY.remoteAppsUrl || "";
 const CHECK_INTERVAL_MS =
   (Number(DEPLOY.checkIntervalMinutes) || DEFAULT_CHECK_INTERVAL_MIN) * 60 * 1000;
 const ALLOWED_LOCAL_ROOTS = Array.isArray(DEPLOY.allowedLocalRoots)
@@ -133,12 +133,12 @@ let logBytes = 0;
 
 function log(message) {
   const line = new Date().toISOString() + "  " + message;
-  console.log("[Portail] " + message);
+  console.log("[StrasEdu] " + message);
   try {
     if (!logFile) {
       const dir = path.join(app.getPath("userData"), "logs");
       fs.mkdirSync(dir, { recursive: true });
-      logFile = path.join(dir, "portail.log");
+      logFile = path.join(dir, "strasedu.log");
       logBytes = fs.existsSync(logFile) ? fs.statSync(logFile).size : 0;
     }
     if (logBytes > 512 * 1024) {
@@ -163,7 +163,7 @@ function userFile(name) {
  *
  * Indispensable : PowerShell (`Set-Content -Encoding UTF8`) et le Bloc-notes
  * écrivent un BOM en tête de fichier, et `JSON.parse` le refuse. Sans ce
- * nettoyage, un `portail.config.json` rédigé par le service informatique est
+ * nettoyage, un `strasedu.config.json` rédigé par le service informatique est
  * déclaré illisible et la configuration distante est silencieusement ignorée.
  */
 function readJSON(filePath, fallback) {
@@ -310,7 +310,7 @@ function setSyncState(state, text) {
 
 function broadcast(payload) {
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send("portail:event", payload);
+    mainWindow.webContents.send("strasedu:event", payload);
   }
 }
 
@@ -327,7 +327,7 @@ function broadcast(payload) {
    • fichier ou partage réseau — la date et la taille du fichier servent de
      signal de changement. Un partage SMB ne demande ni serveur web, ni
      jeton d'authentification, et reste l'option la plus économique en
-     établissement : « \\serveur\partage\PortailOutils\apps.json ».
+     établissement : « \\serveur\partage\StrasEdu\apps.json ».
 */
 
 let catalogEtag = null;
@@ -378,7 +378,7 @@ function fetchCatalog(url, redirects) {
     const client = url.startsWith("https") ? https : http;
 
     const headers = {
-      "User-Agent": "PortailOutils/" + app.getVersion(),
+      "User-Agent": "StrasEdu/" + app.getVersion(),
       Accept: "application/json"
     };
     if (catalogEtag) headers["If-None-Match"] = catalogEtag;
@@ -649,7 +649,7 @@ function createWindow() {
   mainWindow.on("move", saveBounds);
 
   mainWindow.on("close", (event) => {
-    // Fermer la fenêtre laisse le portail actif dans la zone de notification :
+    // Fermer la fenêtre laisse StrasEdu actif dans la zone de notification :
     // c'est un lanceur, il doit rester à portée de clic.
     if (!quitting) {
       event.preventDefault();
@@ -698,7 +698,7 @@ function createTray() {
   tray.setToolTip(APP_NAME);
   tray.setContextMenu(
     Menu.buildFromTemplate([
-      { label: "Ouvrir le portail", click: showWindow },
+      { label: "Ouvrir StrasEdu", click: showWindow },
       { type: "separator" },
       { label: "Vérifier les mises à jour", click: () => checkForUpdates() },
       {
@@ -751,9 +751,9 @@ function snapshot() {
 }
 
 function registerIpc() {
-  ipcMain.handle("portail:snapshot", () => snapshot());
+  ipcMain.handle("strasedu:snapshot", () => snapshot());
 
-  ipcMain.handle("portail:open-app", async (_event, appId) => {
+  ipcMain.handle("strasedu:open-app", async (_event, appId) => {
     let entry;
     try {
       entry = loadCatalog().apps.find((item) => item.id === appId);
@@ -784,7 +784,7 @@ function registerIpc() {
     }
   });
 
-  ipcMain.handle("portail:set-favorites", (_event, ids) => {
+  ipcMain.handle("strasedu:set-favorites", (_event, ids) => {
     const clean = Array.isArray(ids)
       ? ids.filter((id) => typeof id === "string").slice(0, 200)
       : [];
@@ -792,7 +792,7 @@ function registerIpc() {
     return clean;
   });
 
-  ipcMain.handle("portail:set-prefs", (_event, patch) => {
+  ipcMain.handle("strasedu:set-prefs", (_event, patch) => {
     const allowed = {};
     if (patch && typeof patch === "object") {
       if (patch.theme === "system" || patch.theme === "light" || patch.theme === "dark") {
@@ -809,7 +809,7 @@ function registerIpc() {
     return next;
   });
 
-  ipcMain.handle("portail:set-mica", (_event, enabled) => {
+  ipcMain.handle("strasedu:set-mica", (_event, enabled) => {
     savePrefs({ mica: Boolean(enabled) });
     if (isWindows11()) {
       recreateWindow();
@@ -818,7 +818,7 @@ function registerIpc() {
     return { ok: true, restarted: false };
   });
 
-  ipcMain.handle("portail:set-theme", (_event, theme) => {
+  ipcMain.handle("strasedu:set-theme", (_event, theme) => {
     if (theme === "system" || theme === "light" || theme === "dark") {
       savePrefs({ theme });
       nativeTheme.themeSource = theme;
@@ -826,15 +826,15 @@ function registerIpc() {
     return getPrefs();
   });
 
-  ipcMain.handle("portail:check-update", () => checkForUpdates({ notify: true }));
-  ipcMain.handle("portail:reveal-catalog", () => shell.showItemInFolder(userFile("apps.json")));
-  ipcMain.handle("portail:version", () => app.getVersion());
+  ipcMain.handle("strasedu:check-update", () => checkForUpdates({ notify: true }));
+  ipcMain.handle("strasedu:reveal-catalog", () => shell.showItemInFolder(userFile("apps.json")));
+  ipcMain.handle("strasedu:version", () => app.getVersion());
 }
 
 /* ─── Durcissement ───────────────────────────────────────────────────────── */
 
 function hardenSession() {
-  // Le portail n'a besoin ni de caméra, ni de micro, ni de notifications.
+  // StrasEdu n'a besoin ni de caméra, ni de micro, ni de notifications.
   session.defaultSession.setPermissionRequestHandler((_contents, _permission, callback) => {
     callback(false);
   });
@@ -925,7 +925,7 @@ if (!app.requestSingleInstanceLock()) {
     trace("PROMESSE REJETÉE : " + (reason && reason.stack ? reason.stack : String(reason)));
   });
 
-  // Sur Windows, fermer la dernière fenêtre ne quitte pas : le portail reste
+  // Sur Windows, fermer la dernière fenêtre ne quitte pas : StrasEdu reste
   // disponible dans la zone de notification.
   app.on("window-all-closed", () => {
     if (process.platform !== "win32") app.quit();

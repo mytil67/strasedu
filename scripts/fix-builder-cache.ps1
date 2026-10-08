@@ -1,5 +1,5 @@
 ﻿# ═══════════════════════════════════════════════════════════════════════════
-# Portail Outils — préparation du cache electron-builder sous Windows
+# StrasEdu — préparation du cache electron-builder sous Windows
 # ---------------------------------------------------------------------------
 # electron-builder télécharge le paquet « winCodeSign », qui contient des liens
 # symboliques macOS (darwin/10.12/lib/libcrypto.dylib et libssl.dylib). Windows
