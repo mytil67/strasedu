@@ -343,6 +343,18 @@ function broadcast(payload) {
 let catalogEtag = null;
 let localCatalogStamp = null;
 
+/*
+   Catalogue recu et installe sur le disque, mais pas encore affiche : le rendu
+   ne bascule jamais tout seul, pour ne pas changer l'ecran sous les yeux d'un
+   enseignant. En revanche, tant qu'il n'a pas bascule, l'application doit
+   proposer de le faire — sinon un poste reste sur l'ancienne version jusqu'au
+   prochain demarrage, et personne ne s'en apercoit.
+*/
+let pendingCatalog = null;
+
+/** Horodatage du prochain controle automatique (0 si aucun n'est programme). */
+let nextCheckAt = 0;
+
 /** Vrai si l'adresse désigne un fichier local ou un partage réseau. */
 function isLocalCatalogSource(source) {
   return (
@@ -423,9 +435,26 @@ function fetchCatalog(url, redirects) {
         body += chunk;
       });
       response.on("end", () => {
-        if (response.headers.etag) catalogEtag = response.headers.etag;
+        // L'ETag est conservé : c'est ce qui évite de retélécharger tout le
+        // catalogue au premier contrôle de chaque lancement.
+        if (response.headers.etag && response.headers.etag !== catalogEtag) {
+          catalogEtag = response.headers.etag;
+          try {
+            savePrefs({ catalogEtag });
+          } catch {
+            /* préférences non inscriptibles : le cache en mémoire suffit */
+          }
+        }
         try {
-          resolve(JSON.parse(body));
+          /*
+             Un catalogue peut arriver avec un BOM : les editeurs Windows en
+             ajoutent un des qu'on enregistre en UTF-8, et JSON.parse le refuse.
+             Les fichiers locaux sont deja debarrasses du leur ; le catalogue
+             recu par le reseau doit l'etre aussi, sinon un catalogue valide
+             depose a la main serait ecarte sans que rien ne l'explique.
+          */
+          const texte = body.charCodeAt(0) === 0xfeff ? body.slice(1) : body;
+          resolve(JSON.parse(texte));
         } catch (error) {
           reject(new Error("catalogue distant illisible : " + error.message));
         }
@@ -446,6 +475,17 @@ async function checkForUpdates(options) {
   if (!REMOTE_APPS_URL) {
     if (notify) setSyncState("warn", "Catalogue local (aucune source distante)");
     return { ok: true, updated: false, reason: "no-remote-url" };
+  }
+
+  /*
+     L'ETag est relu depuis les préférences au premier contrôle de la session.
+     Sans cela, chaque lancement retéléchargeait tout le catalogue — plusieurs
+     mégaoctets depuis que les visuels y sont embarqués — alors que le serveur
+     aurait répondu « rien n'a changé » sur simple présentation de l'ETag.
+  */
+  if (!catalogEtag) {
+    const stored = getPrefs().catalogEtag;
+    if (typeof stored === "string" && stored) catalogEtag = stored;
   }
 
   setSyncState("checking", "Vérification du catalogue…");
@@ -486,6 +526,7 @@ async function checkForUpdates(options) {
     }
     writeJSON(userFile("apps.json"), remote);
     catalogCache = normalized;
+    pendingCatalog = { version: normalized.version, previousVersion: local.version };
 
     setSyncState("warn", "Nouvelle version " + normalized.version + " du catalogue");
     broadcast({
@@ -554,6 +595,18 @@ function capabilities() {
     // Affichée dans les réglages : sans elle, un poste qui ne se met pas à jour
     // ne laisse rien voir d'autre que « aucune source distante configurée ».
     remoteSource: REMOTE_APPS_URL,
+    /*
+       Un catalogue peut avoir ete recu et installe sans que l'interface l'ait
+       affiche : le rendu ne se met a jour que sur demande, pour ne pas changer
+       sous les yeux d'un enseignant en pleine recherche. Mais tant que ce
+       rechargement n'a pas eu lieu, l'application doit pouvoir l'offrir — sans
+       quoi la seule porte serait un message fugace, et un poste resterait
+       entirement sur la version precedente jusqu'au prochain demarrage.
+    */
+    pendingCatalog: pendingCatalog ? { version: pendingCatalog.version } : null,
+    // Prochain controle automatique : rend visible une mise a jour qui, sinon,
+    // ne se manifeste jamais avant d'avoir abouti.
+    nextCheckAt: nextCheckAt || 0,
     fullscreen: Boolean(mainWindow && !mainWindow.isDestroyed() && mainWindow.isFullScreen()),
     micaSupported: isWindows11()
   };
@@ -826,6 +879,16 @@ function registerIpc() {
     }
   });
 
+  /**
+   * Affiche le catalogue recu et deja installe : l'interface demande un
+   * instantane frais, et le catalogue cesse d'etre « en attente ». C'est le
+   * pendant du message d'annonce — la porte qui reste ouverte.
+   */
+  ipcMain.handle("strasedu:reload-catalog", () => {
+    pendingCatalog = null;
+    return snapshot();
+  });
+
   ipcMain.handle("strasedu:set-fullscreen", (_event, value) => {
     if (!mainWindow || mainWindow.isDestroyed()) return { fullscreen: false };
     const wanted = typeof value === "boolean" ? value : !mainWindow.isFullScreen();
@@ -932,6 +995,7 @@ if (!app.requestSingleInstanceLock()) {
       Math.round(CHECK_INTERVAL_MS * (0.85 + Math.random() * 0.3));
 
     function scheduleSync(delay) {
+      nextCheckAt = Date.now() + delay;
       setTimeout(() => {
         Promise.resolve()
           .then(() => checkForUpdates({ notify: false }))

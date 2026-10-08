@@ -14,7 +14,8 @@ URL, réordonner les catégories.
 
 Tout ce qui suit peut se faire à la main dans un éditeur de texte. L'outil
 d'administration évite d'y toucher : il compose le catalogue, le valide et le
-publie sur le partage réseau.
+publie — vers un dossier partagé, ou directement vers l'adresse qui le sert aux
+postes.
 
 ### Installation
 
@@ -45,7 +46,7 @@ npm run build:admin     # écrit dans dist-admin/
 | **Catégories** | Créer une catégorie, la renommer (les outils suivent), choisir son icône, sa couleur et sa description. |
 | **Mise en avant** | Composer les **sélections d'outils mises en avant** sous le carrousel — « Le moment », « Le mois » : un libellé, puis les outils retenus, dans l'ordre où ils apparaîtront. |
 | **Département** | Rédiger les **informations du carrousel** affiché en tête de l'accueil : titre, texte, image, lien « En savoir plus » et date. Les flèches changent l'ordre d'affichage. |
-| **Application** | Logo de StrasEdu (il remplace la marque par défaut), version du catalogue, et dossier de publication. |
+| **Application** | Logo de StrasEdu (il remplace la marque par défaut), version du catalogue, et destination de publication — un dossier, ou l'adresse `http(s)` qui sert le catalogue aux postes. |
 
 L'aperçu de catégorie et le bandeau supérieur montrent le résultat en direct.
 La barre d'état indique en permanence si le catalogue est conforme, et les
@@ -79,19 +80,26 @@ réinstallation, les postes suivent à la prochaine vérification.
 
 ### Publier
 
-1. **Application → Choisir le dossier…** : désigner le partage réseau
-   (`\\serveur\partage\StrasEdu`). Le choix est mémorisé.
-2. **Publier…** : validation, incrément automatique de la version, écriture de
-   `apps.json` par fichier temporaire puis remplacement.
+1. **Application → destination** : un dossier — `\\serveur\partage\StrasEdu`, ou
+   `Z:\` si le partage est monté — **ou une adresse**,
+   `http://serveur:3000/strasedu/apps.json`. Le choix est mémorisé.
+   Pour une adresse `https`, renseignez aussi l'**empreinte SHA-256 du
+   certificat** et le **jeton de publication** (conservé chiffré par Windows).
+   L'outil refuse de publier s'il en manque un : c'est volontaire.
+2. **Publier…** : validation, incrément automatique de la version, puis dépôt —
+   écriture par fichier temporaire sur un dossier, ou requête `PUT` vers
+   l'adresse. Sur une adresse, l'outil relit ensuite le catalogue servi pour
+   vérifier que le dépôt a bien abouti.
 
-> **« Enregistrer » n'écrit jamais sur le partage.** Seul « Publier » le fait,
-> et c'est lui qui incrémente la version. Enregistrer directement sur le
-> partage diffuserait des changements **sans changer la version** — donc sans
-> que le moindre poste ne se mette à jour. C'est le piège que l'outil évite.
+> **« Enregistrer » n'écrit jamais à la destination.** Seul « Publier » le fait,
+> et c'est lui qui incrémente la version. Enregistrer directement à la
+> destination diffuserait des changements **sans changer la version** — donc
+> sans que le moindre poste ne se mette à jour. C'est le piège que l'outil
+> évite.
 
-« Charger le catalogue publié » relit ce qui est actuellement diffusé, pour le
-corriger : le contenu remplace celui de l'éditeur, la cible d'enregistrement ne
-change pas.
+« Charger le catalogue publié » relit ce qui est actuellement diffusé — dossier
+ou adresse — pour le corriger : le contenu remplace celui de l'éditeur, la cible
+d'enregistrement ne change pas.
 
 ### Vérifier l'outil lui-même
 
@@ -127,15 +135,201 @@ ce que vous faites.
 
 ## 2. Où héberger le catalogue
 
-| | Partage réseau | GitLab |
-| --- | --- | --- |
-| Infrastructure | aucune (le partage existe déjà) | serveur web + forge |
-| Requêtes à 2000 postes | 96 000/j de lectures SMB | 96 000/j, réduites à des `304` |
-| Authentification | droits du partage | **le projet doit être lisible sans jeton** |
-| Historique des versions | non | oui |
+Trois hébergements possibles, lus de la même façon par l'application : changer
+d'hébergement ne demande aucune réinstallation, seule l'adresse change.
 
-**Le partage réseau est recommandé en établissement** : pas de serveur
-supplémentaire, pas de jeton, et les droits sont ceux que vous gérez déjà.
+| | Partage réseau | Serveur web (Raspberry Pi, nginx…) | GitLab |
+| --- | --- | --- | --- |
+| Infrastructure | aucune (le partage existe déjà) | un serveur web sur le réseau | forge + projet |
+| Coût d'une vérification | une lecture des métadonnées | une requête, `304` si rien n'a changé | idem |
+| Authentification | droits du partage — **et le blocage Windows des connexions invitées** | aucune en lecture ; compte pour le dépôt | **le projet doit être lisible sans jeton** |
+| Publication depuis l'outil | vers le dossier partagé | **vers l'adresse** (dépôt `PUT`) | par `update-catalog.ps1` |
+| Historique des versions | non | non | oui |
+
+En établissement, le partage réseau reste le plus simple — à condition que les
+postes puissent l'ouvrir, ce que Windows refuse désormais pour l'accès **invité**
+(voir le piège ci-dessous). Un serveur web évite complètement cette question.
+
+> **Piège du partage invité.** Depuis Windows 10 1709, les connexions SMB
+> anonymes sont bloquées par défaut : un partage Samba sans compte est illisible
+> depuis un poste école. Deux issues — activer « Activer les connexions invitées
+> non sécurisées » par GPO sur les postes, ou donner au partage un compte et ne
+> le monter que sur le poste d'administration, les postes lisant le catalogue en
+> `http`.
+
+### Publier par le service du Raspberry Pi
+
+Le service du Pi (**EduDeploy**) expose deux points d'entrée distincts, et cette
+séparation est volontaire :
+
+| | Lecture (toute la flotte) | Écriture (poste d'administration) |
+| --- | --- | --- |
+| Adresse | `GET http://192.168.6.164:3000/strasedu/apps.json` | `PUT https://192.168.6.164/strasedu/apps.json` |
+| Port | 3000, en clair | 443, chiffré |
+| Jeton | aucun | `Authorization: Bearer <jeton>` |
+
+> **Le jeton ne doit jamais passer par le port 3000**, qui est en clair : il y
+> serait lisible par n'importe qui sur le réseau. C'est pourquoi l'outil
+> d'administration **refuse** de publier vers une adresse `http://`.
+
+Le contrat du service :
+
+- le corps est le document JSON complet, **un objet** (jamais un tableau), et
+  **1 Mo maximum** — il remplace entièrement le précédent, sans mise à jour
+  partielle ;
+- lisez d'abord, puis protégez votre écriture : l'outil fait un `GET`, conserve
+  l'`ETag` reçu et l'envoie dans `If-Match` lors du `PUT`. Si quelqu'un a publié
+  entre-temps, le service répond `412` plutôt que d'écraser son travail ;
+- le certificat du Pi n'étant pas reconnu par Windows, l'outil l'**épingle** :
+  il compare l'empreinte SHA-256 du certificat à celle que vous avez saisie. Sans
+  empreinte renseignée, il ne publie pas — et la vérification TLS n'est jamais
+  désactivée globalement.
+
+Dans l'outil d'administration, onglet **Application** :
+
+| Champ | Valeur |
+| --- | --- |
+| Destination de publication | `https://192.168.6.164/strasedu/apps.json` |
+| Adresse de lecture des postes | `http://192.168.6.164:3000/strasedu/apps.json` — laissée vide, elle est déduite de la destination (même hôte, même chemin, port 3000) |
+| Empreinte SHA-256 du certificat | l'empreinte relevée ci-dessous |
+| Jeton de publication | le jeton `sedu_…`, conservé **chiffré** par Windows |
+
+L'outil relit l'adresse de lecture après le dépôt, pour vérifier que le catalogue
+est bien **servi** — pas seulement accepté.
+
+| Réponse | Ce qu'elle signifie | Ce que fait l'outil |
+| --- | --- | --- |
+| `200` | publié (`{ ok, etag, modifieLe }`) | affiche la version et la date |
+| `400` | le corps n'est pas un objet JSON | signale un catalogue invalide |
+| `401` | jeton invalide | **ne réessaie pas**, demande un nouveau jeton |
+| `412` | le document a changé depuis la lecture | propose de recharger le catalogue publié |
+| `413` | document trop gros | signale la limite de 1 Mo |
+| `503` | service désactivé, ou jeton non configuré | signale le service, pas le réseau |
+
+**L'empreinte du certificat** se lit depuis un poste école, dans un navigateur :
+ouvrez `https://192.168.6.164/strasedu/apps.json`, cliquez sur le cadenas →
+certificat → détails → empreinte SHA-256. Ou en PowerShell :
+
+```powershell
+$tcp = New-Object System.Net.Sockets.TcpClient('192.168.6.164', 443)
+$ssl = New-Object System.Net.Security.SslStream($tcp.GetStream(), $false, { $true })
+$ssl.AuthenticateAsClient('192.168.6.164')
+$cert = $ssl.RemoteCertificate
+(([System.Security.Cryptography.SHA256]::Create().ComputeHash($cert.GetRawCertData())) |
+  ForEach-Object { $_.ToString('x2') }) -join ':'
+$ssl.Dispose(); $tcp.Dispose()
+```
+
+> Le jeton est conservé **chiffré** par l'outil, à l'aide du magasin protégé de
+> Windows (DPAPI) : il n'est jamais écrit en clair, ni dans un fichier de
+> configuration, ni dans un journal. Il reste néanmoins un secret : ne le
+> déposez pas dans un dépôt, et régénérez-le s'il a circulé par un autre canal
+> (courriel, ticket, conversation).
+
+> **Conséquence de la limite de 1 Mo.** Elle devient votre plafond réel : avec
+> des visuels d'outils, comptez une quinzaine d'outils illustrés. Si vous en
+> voulez davantage, la seule vraie solution est de faire relever la limite du
+> service à 2 Mo — c'est un réglage côté Pi.
+
+### Alternative : monter soi-même le service
+
+Sans service existant, nginx suffit pour la lecture, et gère nativement les
+`ETag` : un poste ne retélécharge le catalogue que lorsqu'il a changé.
+
+```nginx
+# /etc/nginx/sites-available/strasedu
+server {
+    listen 3000;
+    # Le chemin servi est root + URI : /srv + /strasedu/apps.json.
+    root /srv;
+
+    location = /strasedu/apps.json {
+        default_type application/json;
+        etag on;
+        allow 192.168.6.0/24;
+        deny all;
+    }
+
+    location / { return 404; }
+}
+```
+
+```bash
+sudo mkdir -p /srv/strasedu
+sudo chown www-data:www-data /srv/strasedu
+sudo systemctl reload nginx
+```
+
+Pour la seule lecture, cela suffit : publiez vers un **dossier local** puis
+déposez `apps.json` dans `/srv/strasedu/` (par `scp`, par exemple).
+
+**Si vous voulez publier directement depuis l'outil, il faut du `https`** —
+l'outil refuse d'envoyer le jeton en clair, sur la même règle que le service du
+Pi. Un certificat **auto-signé convient** : l'outil épingle l'empreinte, il ne
+se fie à aucune autorité. Le contrôle du jeton se fait alors dans nginx :
+
+```nginx
+# Le jeton attendu par le dépôt. Ce fichier contient un secret :
+# chmod 600, et remplacez la valeur.
+map $http_authorization $strasedu_jeton_ok {
+    default                             0;
+    "Bearer remplacez-par-votre-jeton"  1;
+}
+
+server {
+    listen 443 ssl;
+    ssl_certificate     /etc/nginx/strasedu.crt;   # auto-signé : suffisant
+    ssl_certificate_key /etc/nginx/strasedu.key;
+    root /srv;
+
+    location = /strasedu/apps.json {
+        default_type application/json;
+        etag on;
+        # Le catalogue peut approcher 2 Mo : sans cette ligne, le dépôt est
+        # refusé avec un 413, et l'outil le dit.
+        client_max_body_size 4m;
+
+        allow 192.168.6.0/24;
+        deny all;
+
+        dav_methods PUT;
+
+        # Lecture anonyme ; seul le dépôt exige le jeton. Le premier test
+        # n'affecte la variable que pour un PUT : un GET la laisse vide, donc
+        # passe.
+        if ($request_method = PUT) { set $strasedu_garde "${strasedu_jeton_ok}"; }
+        if ($strasedu_garde = 0) { return 403; }
+    }
+
+    location / { return 404; }
+}
+```
+
+Trois points vérifiés dans la documentation de nginx, qui évitent des heures de
+doute :
+
+- `limit_except GET { … }` — utilisé ci-dessus pour un service protégé par mot
+  de passe — est **exactement** le montage de l'exemple officiel du module
+  WebDAV : « exiger une autorisation pour toute méthode autre que GET ».
+- Un fichier déposé par `PUT` est **d'abord écrit dans un fichier temporaire,
+  puis renommé** : un poste ne peut jamais lire un catalogue à moitié écrit.
+- Le module WebDAV n'est pas compilé par défaut dans nginx. Les paquets Debian
+  et Raspberry Pi OS l'activent, mais vérifiez-le :
+  ```bash
+  nginx -V 2>&1 | grep -- --with-http_dav_module
+  ```
+  Si la ligne ne sort pas, installez `nginx-full`.
+
+> Si `/srv` est un point de montage distinct, posez
+> `client_body_temp_path /srv/nginx-tmp;` dans le bloc `server` : le
+> renommage final doit rester sur le même système de fichiers, sinon nginx
+> recopie le fichier au lieu de le renommer.
+
+Côté postes, l'adresse de lecture est la même dans tous les cas :
+
+```json
+{ "remoteAppsUrl": "http://192.168.6.164:3000/strasedu/apps.json" }
+```
 
 > **Piège de GitLab.** L'application lit l'adresse du catalogue **sans
 > authentification**. Si votre projet est privé, les postes recevront un `401`
@@ -197,9 +391,28 @@ pendant la copie ne tombe jamais sur un catalogue à moitié écrit.
 
 Automatiquement, dans les 30 minutes (paramétrable via `checkIntervalMinutes`).
 Les vérifications sont étalées aléatoirement pour ne pas frapper le serveur
-toutes les demi-heures à la même seconde.
+toutes les demi-heures à la même seconde. **Réglages → Source du catalogue**
+indique l'heure du dernier contrôle *et* le délai avant le prochain : c'est ce
+qui permet de constater que la mécanique tourne, sans attendre.
 
 Pour forcer immédiatement sur un poste : **Réglages → Catalogue → Vérifier**.
+
+**Un catalogue reçu n'est jamais affiché de force.** Le remplacer sous les yeux
+d'un enseignant en pleine recherche serait désagréable : le poste installe la
+nouvelle version, puis propose de l'afficher. L'invitation apparaît en bas à
+gauche — *« Nouvelle version 2.3.0 — recharger »* — et **reste** tant que le
+catalogue n'a pas été affiché. Elle se clique, se déclenche à la touche `Entrée`,
+et se retrouve aussi dans **Réglages → Catalogue → Recharger maintenant**.
+
+> C'est délibéré : un message fugace de quelques secondes aurait laissé des
+> postes entiers sur l'ancien catalogue sans que personne ne s'en aperçoive,
+> puisque le fichier, lui, avait déjà changé. La version reçue est de toute
+> façon appliquée au prochain démarrage de l'application.
+
+Pour éprouver le cycle automatique sans attendre une demi-heure, posez
+temporairement `"checkIntervalMinutes": 2` dans `strasedu.config.json`, puis
+rouvrez l'application : le premier contrôle a lieu dans la minute qui suit, et
+**Réglages → Source du catalogue** affiche le compte à rebours.
 
 ---
 
@@ -293,9 +506,18 @@ automatiquement.
 | Un outil a disparu après publication | Son `url` ou son `path` a été refusé par la validation. Lancez `-ValidateOnly`. |
 | Aucun poste ne récupère | Adresse injoignable, ou projet GitLab privé sans accès anonyme. |
 | `catalogue distant : absent` dans la trace | `strasedu.config.json` mal placé (il va dans `resources\`). |
+| « catalogue distant illisible : Unexpected token » | Le fichier servi contient un **BOM** (octets `EF BB BF`) — un éditeur Windows en ajoute un dès qu'on enregistre en UTF-8. L'application le retire désormais ; si le message persiste, le fichier n'est pas du JSON valide. |
 | Les tuiles d'accueil sont ternes | `categoryMeta` incomplet : icône, couleur et description par catégorie. |
 | Une information du carrousel n'a pas de lien | Son `url` n'était pas en `http` ou `https` : elle est publiée sans lien. |
 | Un visuel n'apparaît pas sur les postes | Image au-delà de 192 Ko de texte, ou budget de 1,5 Mo de visuels atteint. Le journal de l'application (`%APPDATA%\StrasEdu\logs\strasedu.log`) nomme l'outil concerné. |
+| Publication refusée, `401` | Jeton refusé par le service. Demandez-en un nouveau : l'outil ne réessaie pas, pour ne pas verrouiller le compte. |
+| Publication refusée, `403` | Le service refuse l'accès à cette adresse, ou le jeton ne correspond pas. |
+| Publication refusée, `412` | Quelqu'un a publié entre-temps. Rechargez « Charger le catalogue publié », puis republiez. |
+| Publication refusée, `413` | Document au-delà de la limite du service (1 Mo). Allégez les visuels. Sur un service que vous montez vous-même : `client_max_body_size 4m;` dans nginx. |
+| Publication refusée, `405` | Le serveur n'accepte pas le dépôt `PUT` à cette adresse (module WebDAV absent, sur un nginx que vous montez vous-même). |
+| Publication refusée, `503` | Service de dépôt désactivé, ou jeton non configuré côté Pi. |
+| Publication refusée avant tout envoi | Empreinte du certificat absente ou différente de celle présentée, jeton absent, ou destination en `http`. L'outil refuse de s'y connecter — c'est voulu. |
+| L'outil dit avoir publié mais les postes ne voient rien | L'adresse de publication n'est pas celle qui est servie. Ouvrez l'adresse de lecture dans un navigateur : le catalogue doit s'y afficher. |
 | Rien ne se met plus à jour, et le catalogue pèse plus de 2 Mo | Les postes refusent le catalogue **entier**. Allégez les visuels, puis republiez avec une version supérieure. |
 | Une mise en avant est incomplète | Un des outils choisis n'existe plus dans le catalogue : il est écarté silencieusement. |
 | Un outil installé ne se lance pas | `path` inexistant sur ce poste : *« Le logiciel n'est pas installé sur ce poste »*. |

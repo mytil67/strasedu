@@ -672,6 +672,29 @@ html[data-theme="dark"] .status-chip[data-state="warn"] {
   color: #f3c377;
 }
 
+/* Une version reçue attend d'être affichée : la pastille devient un bouton, et
+   elle doit se voir. C'est la seule invitation durable — un poste qui la manque
+   reste sur l'ancien catalogue jusqu'au prochain démarrage. */
+.status-chip[data-action] {
+  cursor: pointer;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.status-chip[data-action]:hover {
+  background: rgba(245, 158, 11, 0.3);
+}
+
+html[data-theme="dark"] .status-chip[data-action]:hover {
+  background: rgba(245, 158, 11, 0.26);
+}
+
+.status-chip[data-action]:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
 /* ── 5. Composants ───────────────────────────────────────────────────────── */
 
 /* En-tête de page --------------------------------------------------------- */

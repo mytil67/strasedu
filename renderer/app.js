@@ -115,6 +115,20 @@
     return "rgb(" + out.join(", ") + ")";
   }
 
+  /**
+   * Délai avant un instant futur : « dans 12 min ». Pendant de relativeTime,
+   * qui regarde en arrière.
+   */
+  function untilTime(timestamp) {
+    if (!timestamp) return "";
+    var seconds = Math.round((timestamp - Date.now()) / 1000);
+    if (seconds <= 30) return "dans un instant";
+    var minutes = Math.round(seconds / 60);
+    if (minutes < 60) return "dans " + minutes + " min";
+    var hours = Math.round(minutes / 60);
+    return "dans " + hours + " h";
+  }
+
   function relativeTime(timestamp) {
     if (!timestamp) return "";
     var seconds = Math.round((Date.now() - timestamp) / 1000);
@@ -166,6 +180,13 @@
     // Diapositive courante du carrousel : conservée d'un rendu à l'autre, pour
     // qu'une mise en favori ne ramène pas l'utilisateur à la première.
     slideIndex: 0,
+    /*
+       Version recue et installée, mais pas encore affichée. Tant qu'elle est
+       là, l'application propose de basculer — c'est ce qui empêche un poste de
+       rester des jours sur l'ancien catalogue parce que le message d'annonce
+       aura été manqué.
+    */
+    pendingCatalog: null,
     ready: false
   };
 
@@ -1662,21 +1683,31 @@
         "Catalogue",
         // settingRow échappe déjà son texte : ne pas échapper une seconde fois,
         // sinon une apostrophe s'affiche « &#39; ».
-        "Version " + ((state.catalog && state.catalog.version) || "?") +
-          " · " + state.apps.length + " outils · mis à jour le " +
-          ((state.catalog && state.catalog.lastUpdated) || "?") +
-          (caps.remoteConfigured ? "" : " · aucune source distante configurée"),
-        '<button class="btn btn-sm" type="button" data-action="check-update">' +
+        state.pendingCatalog && state.pendingCatalog.version
+          ? "Version " + state.pendingCatalog.version + " reçue : elle remplacera la version " +
+            ((state.catalog && state.catalog.version) || "?") + " affichée en ce moment."
+          : "Version " + ((state.catalog && state.catalog.version) || "?") +
+            " · " + state.apps.length + " outils · mis à jour le " +
+            ((state.catalog && state.catalog.lastUpdated) || "?") +
+            (caps.remoteConfigured ? "" : " · aucune source distante configurée"),
+        (state.pendingCatalog && state.pendingCatalog.version
+          ? '<button class="btn btn-sm btn-primary" type="button" data-action="reload-catalog">' +
+            svg("refresh", 15) + "Recharger maintenant</button> "
+          : "") +
+          '<button class="btn btn-sm" type="button" data-action="check-update">' +
           svg("refresh", 15) + "Vérifier</button>"
       ) +
       settingRow(
         "Source du catalogue",
-        caps.remoteSource
+        (caps.remoteSource
           ? caps.remoteSource +
             (sync.lastChecked
               ? " · vérifiée " + relativeTime(sync.lastChecked)
               : " · pas encore vérifiée")
-          : "Aucune source distante : le poste utilise le catalogue livré avec l'application.",
+          : "Aucune source distante : le poste utilise le catalogue livré avec l'application.") +
+          // Rendre le contrôle automatique visible : sans cela, rien ne prouve
+          // qu'il tourne, et son absence ne se remarque jamais.
+          (caps.nextCheckAt ? " · prochain contrôle " + untilTime(caps.nextCheckAt) : ""),
         ""
       ) +
       settingRow(
@@ -1819,6 +1850,14 @@
 
   function checkUpdates() {
     if (!bridge || !bridge.checkUpdate) return;
+
+    // Une version reçue mais non affichée passe d'abord : sans cela, « Vérifier »
+    // répondrait « à jour » — puisque le fichier a déjà changé — en laissant
+    // l'écran sur l'ancien catalogue.
+    if (state.pendingCatalog && state.pendingCatalog.version) {
+      reloadCatalog();
+    }
+
     state.sync = { state: "checking", text: "Vérification en cours…" };
     renderStatus();
     bridge.checkUpdate().then(function (result) {
@@ -1849,19 +1888,51 @@
     renderStatus();
   }
 
+  /**
+   * Affiche le catalogue déjà reçu et installé. Passe par le processus
+   * principal, qui marque alors le catalogue comme affiché : c'est ce qui fait
+   * disparaître l'invitation, et non un délai.
+   */
   function reloadCatalog() {
-    if (!bridge) return;
-    bridge.getSnapshot().then(function (snapshot) {
+    if (!bridge || !bridge.reloadCatalog) return;
+    bridge.reloadCatalog().then(function (snapshot) {
       absorb(snapshot);
+      state.pendingCatalog = null;
       render();
+      renderStatus();
       toast("Catalogue rechargé", state.apps.length + " outils disponibles.");
     });
   }
 
   function renderStatus() {
     var sync = state.sync;
-    els.statusSync.setAttribute("data-state", sync.state === "warn" ? "warn" : "ok");
-    els.statusSync.textContent = sync.text || "Catalogue local";
+    var pending = !!(state.pendingCatalog && state.pendingCatalog.version);
+    // Une version en attente reste signalée même si un contrôle ultérieur
+    // répond « à jour » : le fichier a changé, l'écran non.
+    els.statusSync.setAttribute("data-state", pending || sync.state === "warn" ? "warn" : "ok");
+
+    // Une nouvelle version en attente d'affichage : le message d'annonce peut
+    // être manqué, l'invitation reste. Sans cela, la seule porte vers le
+    // catalogue reçu était un message de six secondes.
+    if (pending) {
+      els.statusSync.textContent =
+        "Nouvelle version " + state.pendingCatalog.version + " — recharger";
+      els.statusSync.setAttribute("data-action", "reload-catalog");
+      els.statusSync.setAttribute("role", "button");
+      els.statusSync.setAttribute("tabindex", "0");
+      els.statusSync.setAttribute(
+        "title",
+        "Le catalogue v" + state.pendingCatalog.version +
+          " a été reçu. Cliquez pour l'afficher (Entrée)."
+      );
+    } else {
+      els.statusSync.textContent = sync.text || "Catalogue local";
+      els.statusSync.removeAttribute("data-action");
+      els.statusSync.removeAttribute("role");
+      els.statusSync.removeAttribute("tabindex");
+      els.statusSync.removeAttribute("title");
+    }
+
     els.statusVersion.textContent = "v" + (state.capabilities.version || "");
   }
 
@@ -1901,6 +1972,10 @@
     state.usage = snapshot.usage || {};
     state.prefs = snapshot.prefs || {};
     state.capabilities = snapshot.capabilities || {};
+    // Une version reçue mais pas encore affichée vient du processus principal :
+    // l'invitation à recharger survit ainsi à un rafraîchissement de
+    // l'instantané, et ne dépend pas du message d'annonce.
+    state.pendingCatalog = state.capabilities.pendingCatalog || null;
     state.fullscreen = !!state.capabilities.fullscreen;
     if (els.fullscreen) {
       els.fullscreen.setAttribute("aria-pressed", state.fullscreen ? "true" : "false");
@@ -1992,6 +2067,9 @@
           break;
         case "check-update":
           checkUpdates();
+          break;
+        case "reload-catalog":
+          reloadCatalog();
           break;
         case "reset-favorites":
           state.favorites = [];
@@ -2145,6 +2223,18 @@
 
   function onKeyDown(event) {
     var key = event.key;
+
+    // La pastille d'état devient un bouton quand une version attend d'être
+    // affichée : au clavier, elle doit répondre comme les autres.
+    if (
+      (key === "Enter" || key === " ") &&
+      event.target === els.statusSync &&
+      els.statusSync.getAttribute("data-action") === "reload-catalog"
+    ) {
+      reloadCatalog();
+      event.preventDefault();
+      return;
+    }
     var ctrl = event.ctrlKey || event.metaKey;
     var inField =
       event.target instanceof HTMLInputElement ||
@@ -2288,7 +2378,14 @@
         if (!event) return;
         if (event.type === "catalog-updated") {
           state.sync = { state: "warn", text: "Catalogue mis à jour (v" + event.version + ")." };
+          // L'invitation à recharger ne dépend plus du message : elle reste
+          // jusqu'à ce que le catalogue reçu soit effectivement affiché.
+          state.pendingCatalog = { version: event.version };
           renderStatus();
+          // Les réglages ouverts ne sont PAS reconstruits ici : le rendu
+          // déplacerait le focus et la position de lecture sous les yeux de
+          // l'utilisateur. Le bouton « Vérifier » y applique de toute façon la
+          // version reçue avant de questionner le réseau.
           toast(
             "Catalogue mis à jour",
             "Version " + event.version + " reçue de l'établissement.",

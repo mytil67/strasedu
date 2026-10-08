@@ -48,6 +48,9 @@ const snapshot = {
     remoteConfigured: true,
     remoteSource: "\\\\serveur\\partage\\StrasEdu\\apps.json",
     fullscreen: false,
+    // Une version recue, pas encore affichee : la capture montre l'invitation.
+    pendingCatalog: process.env.PREVIEW_PENDING ? { version: "2.3.0" } : null,
+    nextCheckAt: now + 12 * 60 * 1000,
     micaSupported: true
   },
   sync: { state: "ok", text: "Catalogue à jour (v2.0.0)", lastChecked: now }
@@ -58,6 +61,7 @@ contextBridge.exposeInMainWorld("strasedu", {
   openApp: async () => ({ ok: true }),
   openNews: async () => ({ ok: true }),
   setFullscreen: async () => ({ fullscreen: false }),
+  reloadCatalog: async () => JSON.parse(JSON.stringify(snapshot)),
   setFavorites: async (ids) => ids,
   setPrefs: async (prefs) => Object.assign(snapshot.prefs, prefs),
   setTheme: async (value) => {

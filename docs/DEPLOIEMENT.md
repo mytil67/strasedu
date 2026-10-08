@@ -221,7 +221,7 @@ Créez `strasedu.config.json` **à côté de l'exécutable**, dans
 
 | Clé | Rôle |
 | --- | --- |
-| `remoteAppsUrl` | Adresse du catalogue : partage réseau (`\\serveur\StrasEdu\apps.json`), chemin local (`C:\…`), ou URL `https`. Laissez vide pour un fonctionnement hors ligne. |
+| `remoteAppsUrl` | Adresse du catalogue : partage réseau (`\\serveur\StrasEdu\apps.json`), chemin local (`C:\…`), ou URL `http(s)`. Laissez vide pour un fonctionnement hors ligne. |
 | `checkIntervalMinutes` | Fréquence de vérification, 30 par défaut. |
 | `allowedLocalRoots` | *(optionnel)* Restreint les outils `type: "local"` à ces arborescences. Si la clé est absente, tout chemin absolu en `.exe` ou `.lnk` existant est accepté. |
 
@@ -257,13 +257,18 @@ rejetée, l'erreur est journalisée, et la version précédente reste en service
 ### Charge serveur à l'échelle d'un parc
 
 L'application utilise une **requête conditionnelle** : elle mémorise l'`ETag`
-renvoyé par le serveur et le présente en `If-None-Match`. Le serveur répond
-alors `304 Not Modified`, sans corps.
+renvoyé par le serveur — y compris d'un lancement à l'autre — et le présente en
+`If-None-Match`. Le serveur répond alors `304 Not Modified`, sans corps.
 
 | | Sans requête conditionnelle | Avec `ETag` |
 | --- | --- | --- |
 | Requêtes par jour (2000 postes, 30 min) | 96 000 | 96 000 |
 | Volume transféré par jour | ~750 Mo | **~29 Mo** |
+
+> Ces volumes supposent un catalogue **texte** d'environ 10 Ko. Depuis que les
+> visuels y sont embarqués, il peut approcher 2 Mo : multipliez d'autant. Le
+> `304` reste la protection principale — sans lui, chaque poste
+> retéléchargerait tout le catalogue au premier contrôle de chaque lancement.
 
 Les vérifications sont en outre **étalées aléatoirement** (± 15 % autour de
 l'intervalle, et sur la première minute après l'ouverture de session). Sans cet

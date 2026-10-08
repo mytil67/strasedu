@@ -188,9 +188,10 @@ demande ni Node ni npm :
 Onglets *Outils*, *Catégories*, *Mise en avant*, *Département*, *Application* :
 on compose le catalogue, on choisit les icônes, les visuels des outils et le
 logo officiel, on rédige les informations du carrousel et les sélections
-d'outils à mettre en avant, puis on publie sur le partage réseau. La version est
-incrémentée automatiquement, et un catalogue invalide est refusé en nommant
-l'outil fautif.
+d'outils à mettre en avant, puis on publie — vers un dossier partagé, ou
+**directement vers l'adresse `http` qui sert le catalogue aux postes**. La
+version est incrémentée automatiquement, et un catalogue invalide est refusé en
+nommant l'outil fautif.
 
 ```powershell
 npm run build:admin     # fabrique les deux exécutables dans dist-admin/
