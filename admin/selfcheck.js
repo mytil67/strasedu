@@ -13,7 +13,11 @@
      • composer le carrousel du département : en-tête, informations, ordre,
        date, refus d'une adresse de lien qui n'est pas http(s) ;
      • définir le logo officiel ;
-     • enregistrer, puis publier sur le partage avec incrément de version ;
+     • enregistrer, puis publier : vers un dossier partagé (écriture atomique) et
+     vers le service HTTPS du Raspberry (GET de l'ETag, PUT avec If-Match,
+     certificat épinglé par empreinte, vérification par la lecture des postes) ;
+     • refuser un dépôt en http — le jeton y serait en clair — et un dépôt sans
+       empreinte de certificat, sans émettre la moindre requête ;
      • peser le catalogue : avertissement avant l'enregistrement, refus de
        publication avant la limite au-delà de laquelle les postes l'écartent ;
      • refuser un catalogue invalide en nommant l'outil fautif.
@@ -28,9 +32,85 @@
 
 "use strict";
 
+const crypto = require("crypto");
 const fs = require("fs");
+const http = require("http");
+const https = require("https");
 const os = require("os");
 const path = require("path");
+
+/* ─── Matériel de test ───────────────────────────────────────────────────── */
+
+/**
+ * Jeton de test, de la forme de ceux du service. Il est cherché explicitement,
+ * à la fin, dans TOUTE la trace produite par le test : c'est la preuve qu'il
+ * n'apparaît ni dans un journal, ni dans un message d'erreur, ni dans un détail
+ * de contrôle.
+ */
+const SERVER_TOKEN = "sedu_jeton_de_test_3f9a1c7e";
+
+/**
+ * Certificat et clé auto-signés, jetables : « certificat de test, sans valeur ».
+ * Ils servent uniquement à présenter à l'outil un certificat que Windows ne
+ * reconnaît pas, afin d'éprouver l'épinglage par empreinte. L'empreinte
+ * attendue est calculée à l'exécution depuis ce même certificat ; aucun
+ * certificat réel n'entre dans ce fichier.
+ */
+const TLS_KEY = [
+  "-----BEGIN PRIVATE KEY-----",
+  "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDXCITQ2Auys0UG",
+  "bDBzRriqwC0YqBTK3bvabPSbXQ1ZOCabtt0Tczd3ipvns63ku6lo1RX3/Q50XzMY",
+  "1mw0mdx5JV1x1PYMM0Mmo2VW0+nPdfrMTXavm//83G2aYABkFNcVBbpqMUomCwD7",
+  "K5WBlsqt4NgfXz3AB5GgzzwWWaK0xuMBr4XnPVUyLS3xeREDpTo+6su4/n0qAdY/",
+  "joGwrwPQ4pKep2cgkzP6OoErOTX4fh2CAKRpw8n+TzMtgn4eb03ItW6CHhCRdb1c",
+  "BAlduJ2mzEbcQR5TlaX64zS1IdWmgVDJcQRIIaU8+1btNXNUfHfGMal8Wk61JjRm",
+  "/RaQ4nJbAgMBAAECggEAayM+cYPDSFUTpiCPf1AUQFch4PAV9AHIUAsLUMFrHjHg",
+  "4qKYwdEdKL1x8l7O3HE39hh9KqL16btpDQ4AubCTbfTU+xtdQDTmV0EAA+Pv0cL5",
+  "o4NRCCwUvlrhbRI5/6N2im3hNHm8dPn0kjBj/D4yW7H0XKUqchwTTekTChu8+o5X",
+  "ykmZQm3BurzsqlIJockuHVzLB61LjUyr9/Hg0MvJsOjj4QBfZKnUYAghhNkwOuiQ",
+  "Xj7anwGy/Vx2Mjz8vaPHS7KplU/7fmEbnDZT3wI81sJIj88yx2yhZvHOWpmgW5no",
+  "MuT7bGrP9BXuu0+HONnPFDO6cydiAji20u/AChFGaQKBgQDtE4Sv0pl7asU8UF5V",
+  "sjT36/Si60hG4mHfrE/6AGXnMg/Dt/Q9ePOcTXGEOrKuGxYBJGhj+Jy9WhLYbxnR",
+  "vZeYYVnrHnVx+OP7/qvs8u5oK9wK3AuWCJW8KArqahC9L51IrGyH88H2NnFYleIl",
+  "qDqt3E8RqYxZtgBEdSdFhqpA7QKBgQDoMpGDPCdRlAx+qVK1tL/cCfrGKiaczoy8",
+  "xBK0y3ZSQ5+1agSkEYhMq6z6rIgHDXu3bUnoUkKnczNllL7f3dj6rKPXz45tc7Fr",
+  "1dyDNHcvMUvTpkU1MxmfRLYtC/p0NNwtdPcjs/MUthn0C5a9MbGchRRpRzjivYmL",
+  "WCaXqQg/ZwKBgFTGVP02VrHeRTdDGeiU+AHreyhC8C6AxzTffh3MxKO+sApxnkHZ",
+  "HWu3+a6p+rjtcJnp9fZBsXK4YeLJH7dzj2Dq9udvldmygXvb3oi1efEANgggFXiK",
+  "C1kkDHs0gFXWT+zr00duL96mKzPdLOgAVzNSg2eydECkJ0ZTij5/YCQlAoGBAKiS",
+  "hdfL5ROxsvyFuxlV9vAtgpU5Zrzyq3QjuRzulaEVnS4coO/oFpbrD/MRLNRJ8qZx",
+  "PnXeuqtM1GSL/6MRMYSTr4NvGQzXMFiEc8oBXgGx/UXT8Wy1A4YAYW4Ewzh4Y9zQ",
+  "jNerve8sYV0uyKnkGPj0GKRx45ehWOkD/0idm/JDAoGBAMJigBTuIByXY56riAQN",
+  "bfndnsq/gh05qPrt0rXj4FNLKtBqQkZw6OpMhQLwmJ+Wf8oBn74l97EpkdIzTz5g",
+  "y3DImM/6OIMLa0LXh/qKsZhOAwcj6fhzEBbrooAS7AmITpYXsdv8roYU6/uS39NT",
+  "80kQRNsHZ78GyZ+UoOVKIPDa",
+  "-----END PRIVATE KEY-----"
+].join("\n");
+
+const TLS_CERT = [
+  "-----BEGIN CERTIFICATE-----",
+  "MIIDnTCCAoWgAwIBAgIUGMTlGGx6g1sZ62Nh3ql0f3t9z8IwDQYJKoZIhvcNAQEL",
+  "BQAwXjFEMEIGA1UECgw7U3RyYXNFZHUgYXV0b3ZlcmlmaWNhdGlvbiAoY2VydGlm",
+  "aWNhdCBkZSB0ZXN0LCBzYW5zIHZhbGV1cikxFjAUBgNVBAMMDXN0cmFzZWR1LXRl",
+  "c3QwHhcNMjYxMDA4MTI1MjE1WhcNMzYxMDA1MTI1MjE1WjBeMUQwQgYDVQQKDDtT",
+  "dHJhc0VkdSBhdXRvdmVyaWZpY2F0aW9uIChjZXJ0aWZpY2F0IGRlIHRlc3QsIHNh",
+  "bnMgdmFsZXVyKTEWMBQGA1UEAwwNc3RyYXNlZHUtdGVzdDCCASIwDQYJKoZIhvcN",
+  "AQEBBQADggEPADCCAQoCggEBANcIhNDYC7KzRQZsMHNGuKrALRioFMrdu9ps9Jtd",
+  "DVk4Jpu23RNzN3eKm+ezreS7qWjVFff9DnRfMxjWbDSZ3HklXXHU9gwzQyajZVbT",
+  "6c91+sxNdq+b//zcbZpgAGQU1xUFumoxSiYLAPsrlYGWyq3g2B9fPcAHkaDPPBZZ",
+  "orTG4wGvhec9VTItLfF5EQOlOj7qy7j+fSoB1j+OgbCvA9Dikp6nZyCTM/o6gSs5",
+  "Nfh+HYIApGnDyf5PMy2Cfh5vTci1boIeEJF1vVwECV24nabMRtxBHlOVpfrjNLUh",
+  "1aaBUMlxBEghpTz7Vu01c1R8d8YxqXxaTrUmNGb9FpDiclsCAwEAAaNTMFEwHQYD",
+  "VR0OBBYEFNCpHpnlWbF5R8K34eAp/scSYfksMB8GA1UdIwQYMBaAFNCpHpnlWbF5",
+  "R8K34eAp/scSYfksMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEB",
+  "AB06ZVWK+TgnptPhRRZhEGz+P2Vn+L0GdDn5TlQNdpItt7vcDD97n/z7cYsS8QLH",
+  "MACydZhxNI53Aeju0n25gmCSIE+HOGVP8G11Ts/Pe3cp+9oDR0nCsTA2BueCulmU",
+  "I6HpARFL5j1c9iQwXDHfyzlByLX/vvaXAzk63jc8PQtt25bofOLg9lWDK/XwLpIK",
+  "W15sBEboLOM/Xuw0h6QfvCAUnEjbKNwlZe1eM2yhyrWYX9FtlqC+HK3FCaVQoSos",
+  "/E8/FV8z5g/9bKo2C72ei4zg3MDYItxOFfbdx+hzK8XxfSzzsIeFWzGmyjJ8h/b5",
+  "CFNyiF1nO+WZjkcgpgEiC30=",
+  "-----END CERTIFICATE-----"
+].join("\n");
 
 const ROOT = path.resolve(__dirname, "..");
 const WORK = path.join(ROOT, ".selfcheck");
@@ -57,6 +137,21 @@ require("./main.js"); // démarre l'application d'administration
 const results = [];
 let failures = 0;
 const consoleErrors = [];
+
+/* Toute la trace produite par le test, y compris les lignes de progression :
+   c'est dans cet ensemble que le jeton de test est cherché à la fin. */
+const trace = [];
+const realLog = console.log.bind(console);
+const realError = console.error.bind(console);
+
+console.log = (...args) => {
+  trace.push(args.map((value) => String(value)).join(" "));
+  realLog(...args);
+};
+console.error = (...args) => {
+  trace.push(args.map((value) => String(value)).join(" "));
+  realError(...args);
+};
 
 function check(label, condition, detail) {
   const ok = !!condition;
@@ -88,7 +183,11 @@ async function run(win) {
   let jsCount = 0;
   const js = (code) => {
     jsCount += 1;
-    console.log("    js#" + jsCount + "  " + String(code).replace(/\s+/g, " ").slice(0, 76));
+    // Le code envoyé au rendu contient le jeton quand le test le saisit : on le
+    // masque dans la trace, sans quoi la recherche « le jeton n'apparaît nulle
+    // part » ne prouverait plus rien.
+    const shown = String(code).replace(/\s+/g, " ").split(SERVER_TOKEN).join("‹jeton›");
+    console.log("    js#" + jsCount + "  " + shown.slice(0, 76));
     return withTimeout(win.webContents.executeJavaScript(code, true), 8000, "js#" + jsCount);
   };
 
@@ -1067,9 +1166,17 @@ async function run(win) {
   // le rafraîchissement seul ne recalcule pas l'état : on redemande donc la
   // vérification par le chemin normal du formulaire — une saisie identique
   // déclenche la vérification différée — avant de relire la pastille.
+  //
+  // La vérification différée sérialise tout le catalogue (2,3 Mo ici) et peut
+  // dépasser la seconde sur une machine chargée : on l'attend jusqu'à ce que la
+  // pastille porte le détail, au lieu de parier sur un délai fixe. Le contrôle
+  // est le même, seule l'attente cesse d'être une course.
   await setField("e-version", await js("window.__adminState.catalog.version"));
-  await wait(900);
-  const heavyTitle = await js("document.getElementById('st-state').getAttribute('title')");
+  let heavyTitle = "";
+  for (let attempt = 0; attempt < 24 && !/pèse/.test(heavyTitle); attempt += 1) {
+    await wait(250);
+    heavyTitle = await js("document.getElementById('st-state').getAttribute('title')");
+  }
   console.log("    pastille d'état : " + JSON.stringify(
     String(heavyTitle).split("\n").find((line) => /pèse/.test(line)) || ""));
   check("détail du poids dans le titre de la pastille d'état",
@@ -1149,10 +1256,13 @@ async function run(win) {
     JSON.stringify(cleanCheck && cleanCheck.warnings));
 
   // La pastille ne doit pas rester sur l'avertissement : l'état a repris son
-  // poids normal.
+  // poids normal. Même attente progressive que ci-dessus, dans l'autre sens.
   await setField("e-version", await js("window.__adminState.catalog.version"));
-  await wait(900);
-  const cleanTitle = await js("document.getElementById('st-state').getAttribute('title')");
+  let cleanTitle = "pèse";
+  for (let attempt = 0; attempt < 24 && /pèse/.test(cleanTitle); attempt += 1) {
+    await wait(250);
+    cleanTitle = await js("document.getElementById('st-state').getAttribute('title')");
+  }
   check("titre de la pastille d'état sans avertissement de poids",
     !/pèse/.test(String(cleanTitle)), String(cleanTitle).slice(0, 160));
 
@@ -1166,7 +1276,684 @@ async function run(win) {
     !!afterCleanup && afterCleanup.ok === true,
     JSON.stringify(afterCleanup && afterCleanup.problems));
 
-  /* ── 18. Silence de la console ─────────────────────────────────────────── */
+  /* ── 18. Dépôt par le service HTTPS du Raspberry ───────────────────────── */
+  step("dépôt par le service https");
+
+  // Le test tient lui-même le rôle du service : certificat auto-signé jetable,
+  // contrôle d'empreinte, ETag, et les codes d'erreur du contrat. Rien de tout
+  // cela ne sort de la machine. Le jeton de test n'est jamais tracé — il est
+  // même cherché dans toute la trace produite, à la fin.
+  const MODIFIED_AT = "2026-10-08T09:30:00Z";
+  const seen = {
+    requests: 0,
+    tlsAttempts: 0,
+    getAttempts: 0,
+    gets: 0,
+    sentEtag: [],
+    putAttempts: 0,
+    puts: 0,
+    auth: [],
+    ifMatch: [],
+    lengths: [],
+    bodies: [],
+    readRequests: 0,
+    readAuth: []
+  };
+  let mode = "normal";
+  let etagSeq = 1;
+  let servedBody = Buffer.from(JSON.stringify({ version: "0.0.0", apps: [] }), "utf-8");
+  let readBody = null;
+
+  const currentEtag = () => '"catalogue-' + etagSeq + '"';
+  // Le schéma seul sert de détail de contrôle : un en-tête Authorization porte
+  // le jeton, et un jeton recopié dans un journal est un jeton perdu.
+  const schemeOf = (value) => {
+    const text = String(value || "");
+    if (/^Bearer\s/i.test(text)) return "Bearer";
+    if (/^Basic\s/i.test(text)) return "Basic";
+    return "(aucun)";
+  };
+  const reportText = () => js("document.getElementById('publish-report').textContent");
+  const reportTone = () => js("document.getElementById('publish-report').getAttribute('data-tone')");
+  const reportHidden = () => js("document.getElementById('publish-report').hidden");
+  const publish = async () => {
+    await click('[data-act="publish"]');
+    await wait(1700);
+  };
+  const publishedState = async () => JSON.parse(await js(
+    "JSON.stringify({version:window.__adminState.catalog.version," +
+    "lastUpdated:window.__adminState.catalog.lastUpdated})"
+  ));
+  const lastItem = (list) => (list.length ? list[list.length - 1] : "");
+  const selectedImage = () => js(
+    "(()=>{const s=window.__adminState;const a=s.catalog.apps.find(x=>x.id===s.appId);" +
+    "return a&&typeof a.image==='string'?a.image:null;})()"
+  );
+
+  const writeServer = https.createServer({ key: TLS_KEY, cert: TLS_CERT }, (req, res) => {
+    seen.requests += 1;
+    let pathname = "/";
+    try {
+      pathname = new URL(req.url, "https://127.0.0.1").pathname;
+    } catch {
+      pathname = "/";
+    }
+    const auth = String(req.headers.authorization || "");
+
+    if (pathname !== "/strasedu/apps.json") {
+      req.resume();
+      res.statusCode = 404;
+      return res.end("introuvable");
+    }
+
+    // Compteurs d'essais : ils prouvent qu'aucune requête ne part quand l'outil
+    // doit refuser sur place, et qu'un échec n'est jamais rejoué en silence.
+    if (req.method === "GET") seen.getAttempts += 1;
+    if (req.method === "PUT") seen.putAttempts += 1;
+
+    if (mode === "unauthorized") {
+      req.resume();
+      res.statusCode = 401;
+      return res.end("jeton refuse");
+    }
+    if (auth !== "Bearer " + SERVER_TOKEN) {
+      req.resume();
+      res.statusCode = 401;
+      return res.end("jeton refuse");
+    }
+
+    if (req.method === "GET") {
+      seen.gets += 1;
+      const tag = mode === "noEtag" ? "" : currentEtag();
+      seen.sentEtag.push(tag);
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "application/json");
+      // Sans ETag : l'outil doit publier quand même, et le dire.
+      if (tag) res.setHeader("ETag", tag);
+      return res.end(servedBody);
+    }
+
+    if (req.method !== "PUT") {
+      req.resume();
+      res.statusCode = 405;
+      return res.end("methode refusee");
+    }
+
+    if (mode === "conflict") {
+      req.resume();
+      res.statusCode = 412;
+      return res.end("conflit");
+    }
+    if (mode === "tooLarge") {
+      req.resume();
+      res.statusCode = 413;
+      return res.end("trop gros");
+    }
+    if (mode === "unavailable") {
+      req.resume();
+      res.statusCode = 503;
+      return res.end("indisponible");
+    }
+    if (mode === "badRequest") {
+      req.resume();
+      res.statusCode = 400;
+      return res.end("corps refuse");
+    }
+    if (mode === "serverError") {
+      req.resume();
+      res.statusCode = 500;
+      return res.end("erreur interne");
+    }
+
+    // Le service refuse un document modifié depuis la lecture : c'est le sens
+    // d'If-Match, et c'est exactement ce que le test reproduit ici.
+    if (mode !== "noEtag" && String(req.headers["if-match"] || "") !== currentEtag()) {
+      req.resume();
+      res.statusCode = 412;
+      return res.end("conflit");
+    }
+
+    const chunks = [];
+    req.on("data", (chunk) => chunks.push(chunk));
+    req.on("end", () => {
+      const body = Buffer.concat(chunks);
+      seen.puts += 1;
+      seen.auth.push(auth);
+      seen.ifMatch.push(String(req.headers["if-match"] || ""));
+      seen.lengths.push(Number(req.headers["content-length"]));
+      seen.bodies.push(body);
+      servedBody = body;
+      readBody = body; // l'adresse de lecture sert le même document
+      etagSeq += 1;
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ ok: true, etag: currentEtag(), modifieLe: MODIFIED_AT }));
+    });
+    return undefined;
+  });
+  // Une tentative TLS se voit soit par la poignée terminée, soit par l'erreur
+  // laissée par le client qui a coupé : les deux comptent, car un client qui
+  // refuse le certificat peut disparaître avant que le serveur ne conclue.
+  writeServer.on("secureConnection", () => {
+    seen.tlsAttempts += 1;
+  });
+  writeServer.on("tlsClientError", () => {
+    seen.tlsAttempts += 1;
+  });
+
+  const readServer = http.createServer((req, res) => {
+    seen.readRequests += 1;
+    seen.readAuth.push(String(req.headers.authorization || ""));
+    let pathname = "/";
+    try {
+      pathname = new URL(req.url, "http://127.0.0.1").pathname;
+    } catch {
+      pathname = "/";
+    }
+    if (pathname !== "/strasedu/apps.json") {
+      res.statusCode = 404;
+      return res.end("introuvable");
+    }
+    if (req.method !== "GET") {
+      req.resume();
+      res.statusCode = 405;
+      return res.end("methode refusee");
+    }
+    if (!readBody) {
+      res.statusCode = 404;
+      return res.end("aucun catalogue");
+    }
+    res.statusCode = 200;
+    res.setHeader("Content-Type", "application/json");
+    return res.end(readBody);
+  });
+
+  const writePort = await new Promise((resolve, reject) => {
+    writeServer.once("error", reject);
+    writeServer.listen(0, "127.0.0.1", () => resolve(writeServer.address().port));
+  });
+  const readPort = await new Promise((resolve, reject) => {
+    readServer.once("error", reject);
+    readServer.listen(0, "127.0.0.1", () => resolve(readServer.address().port));
+  });
+  const writeUrl = "https://127.0.0.1:" + writePort + "/strasedu/apps.json";
+  const missingUrl = "https://127.0.0.1:" + writePort + "/absent/apps.json";
+  const readUrl = "http://127.0.0.1:" + readPort + "/strasedu/apps.json";
+  console.log("    service d'essai : dépôt https:127.0.0.1:" + writePort +
+    " · lecture http:127.0.0.1:" + readPort + " (jeton non journalisé)");
+
+  // Empreinte calculée à l'exécution depuis le certificat de test : c'est ce qui
+  // rend le contrôle probant. L'empreinte fausse n'en diffère que d'un caractère.
+  const testCertificate = new crypto.X509Certificate(TLS_CERT);
+  const GOOD_FINGERPRINT = testCertificate.fingerprint256;
+  const WRONG_FINGERPRINT = (GOOD_FINGERPRINT[0] === "A" ? "B" : "A") + GOOD_FINGERPRINT.slice(1);
+
+  // L'environnement forçait la destination d'essai (le dossier) : on le retire
+  // pour que la préférence saisie dans l'interface soit bien celle que lit la
+  // couche native, comme chez un administrateur.
+  delete process.env.STRASEDU_ADMIN_SHARE;
+
+  /* ── 18a. Ce que l'onglet Application annonce ───────────────────────────── */
+  await click('[data-tab="application"]');
+  await wait(250);
+  check("destination par dossier annoncée comme telle",
+    /Dossier de publication/.test(await js("document.getElementById('share-note').textContent")));
+  check("jeton masqué pour un dossier",
+    (await js("document.getElementById('row-token').hidden")) === true);
+  check("empreinte masquée pour un dossier",
+    (await js("document.getElementById('row-fingerprint').hidden")) === true);
+  check("adresse de lecture masquée pour un dossier",
+    (await js("document.getElementById('row-read').hidden")) === true);
+  check("sélecteur de dossier actif pour un dossier",
+    (await js("document.getElementById('share-choose').disabled")) === false);
+  check("jeton masqué par défaut",
+    (await js("document.getElementById('e-token').type")) === "password");
+  check("bouton d'affichage du jeton décrit aux lecteurs d'écran",
+    (await js("document.getElementById('token-reveal').getAttribute('aria-label')")).indexOf("jeton") >= 0);
+
+  await setField("e-share", writeUrl);
+  await wait(250);
+  check("champ du jeton proposé pour un dépôt https",
+    (await js("document.getElementById('row-token').hidden")) === false);
+  check("champ de l'empreinte proposé pour un dépôt https",
+    (await js("document.getElementById('row-fingerprint').hidden")) === false);
+  check("adresse de lecture proposée pour une URL",
+    (await js("document.getElementById('row-read').hidden")) === false);
+  check("sélecteur de dossier désactivé sur une URL",
+    (await js("document.getElementById('share-choose').disabled")) === true,
+    "il écraserait l'adresse par un chemin local");
+  check("sélecteur de dossier annoncé inutilisable",
+    (await js("document.getElementById('share-choose').getAttribute('aria-disabled')")) === "true");
+  check("destination https annoncée comme un dépôt",
+    /HTTPS/.test(await js("document.getElementById('share-note').textContent")),
+    await js("document.getElementById('share-note').textContent"));
+
+  await click('[data-act="token-reveal"]');
+  await wait(150);
+  check("bouton d'affichage révélant le jeton",
+    (await js("document.getElementById('e-token').type")) === "text");
+  await click('[data-act="token-reveal"]');
+  await wait(150);
+  check("jeton de nouveau masqué",
+    (await js("document.getElementById('e-token').type")) === "password");
+
+  // Le jeton saisi est confié au coffre du système : l'interface l'oublie
+  // aussitôt, et le fichier de préférences ne doit pas le contenir en clair.
+  await setField("e-token", SERVER_TOKEN);
+  await wait(900);
+  const prefsPath = path.join(WORK, "profil", "admin-prefs.json");
+  const prefsRaw = fs.existsSync(prefsPath) ? fs.readFileSync(prefsPath, "utf-8") : "";
+  const secureStorage = await js("window.__adminState.secureStorage");
+  check("champ du jeton vidé après enregistrement",
+    (await js("document.getElementById('e-token').value")) === "");
+  check("l'interface sait qu'un jeton est enregistré",
+    (await js("window.__adminState.hasToken")) === true);
+  check("jeton absent du fichier de préférences",
+    prefsRaw.indexOf(SERVER_TOKEN) < 0,
+    "le jeton ne doit jamais être écrit en clair");
+  check("jeton chiffré écrit quand le système propose un coffre",
+    secureStorage === false || /"publishTokenCipher"\s*:\s*"[A-Za-z0-9+/=]{16,}"/.test(prefsRaw),
+    "coffre du système : " + secureStorage);
+  check("stockage du jeton annoncé dans l'interface",
+    /chiffré|mémoire/.test(await js("document.getElementById('token-note').textContent")),
+    await js("document.getElementById('token-note').textContent"));
+  check("note de l'empreinte expliquant le refus sans empreinte",
+    /refuse de publier/.test(await js("document.getElementById('fingerprint-note').textContent")));
+
+  /* ── 18b. Sans empreinte : refus net, aucune requête ────────────────────── */
+  const requestsBeforeNoFingerprint = seen.requests;
+  const tlsBeforeNoFingerprint = seen.tlsAttempts;
+  await publish();
+  let report = await reportText();
+  check("sans empreinte : publication refusée",
+    /empreinte/.test(report), report.slice(0, 200));
+  check("sans empreinte : aucune requête et aucune tentative TLS",
+    seen.requests === requestsBeforeNoFingerprint &&
+      seen.tlsAttempts === tlsBeforeNoFingerprint,
+    seen.requests + " requête(s), " +
+      (seen.tlsAttempts - tlsBeforeNoFingerprint) + " tentative(s) TLS");
+  check("échec de publication présenté comme tel",
+    (await reportTone()) === "warn");
+
+  /* ── 18c. Empreinte fausse : connexion coupée avant tout envoi ──────────── */
+  await setField("e-fingerprint", WRONG_FINGERPRINT);
+  await wait(250);
+  const requestsBeforeWrong = seen.requests;
+  const tlsBeforeWrong = seen.tlsAttempts;
+  await publish();
+  report = await reportText();
+  check("empreinte fausse : connexion coupée, message explicite",
+    /empreinte attendue/.test(report), report.slice(0, 240));
+  check("empreinte fausse : le certificat de test a bien été présenté",
+    seen.tlsAttempts > tlsBeforeWrong &&
+      report.indexOf(GOOD_FINGERPRINT.replace(/[^0-9a-fA-F]/g, "").slice(0, 8)) >= 0,
+    (seen.tlsAttempts - tlsBeforeWrong) + " tentative(s) TLS");
+  check("empreinte fausse : aucune requête HTTP envoyée",
+    seen.requests === requestsBeforeWrong, seen.requests + " requête(s)");
+  check("empreinte fausse : aucun dépôt tenté",
+    seen.putAttempts === 0, seen.putAttempts + " essai(s) de PUT");
+
+  /* ── 18d. Empreinte correcte : GET (ETag) puis PUT (If-Match) ───────────── */
+  await setField("e-fingerprint", GOOD_FINGERPRINT);
+  await wait(250);
+  await setField("e-read", readUrl);
+  await wait(250);
+  check("empreinte recopiée telle que Windows l'affiche : acceptée",
+    (await js("document.getElementById('e-fingerprint').getAttribute('aria-invalid')")) === "false");
+
+  const beforeFirst = JSON.parse(await js("JSON.stringify(window.__adminState.catalog)"));
+  const readRequestsBefore = seen.readRequests;
+  await publish();
+  const afterFirst = await publishedState();
+  const expectedFirst = JSON.stringify(Object.assign({}, beforeFirst, {
+    version: afterFirst.version,
+    lastUpdated: afterFirst.lastUpdated
+  }), null, 2) + os.EOL;
+  const receivedFirst = seen.bodies.length ? seen.bodies[0].toString("utf-8") : "";
+
+  check("dépôt accepté par le service",
+    afterFirst.version !== beforeFirst.version,
+    beforeFirst.version + " -> " + afterFirst.version);
+  check("lecture préalable du catalogue par GET",
+    seen.gets === 1, seen.gets + " GET");
+  check("corps reçu exactement celui attendu",
+    receivedFirst === expectedFirst,
+    receivedFirst.length + " caractères reçus / " + expectedFirst.length + " attendus");
+  check("version incrémentée comprise dans le corps",
+    !!receivedFirst && JSON.parse(receivedFirst).version === afterFirst.version,
+    afterFirst.version);
+  check("catalogue accentué : octets distincts des caractères",
+    Buffer.byteLength(expectedFirst, "utf-8") !== expectedFirst.length,
+    expectedFirst.length + " caractères / " + Buffer.byteLength(expectedFirst, "utf-8") + " octets");
+  check("longueur annoncée en octets",
+    seen.lengths[0] === Buffer.byteLength(receivedFirst, "utf-8"),
+    seen.lengths[0] + " annoncés / " + Buffer.byteLength(receivedFirst, "utf-8") + " reçus");
+  check("jeton envoyé en Bearer",
+    seen.auth[0] === "Bearer " + SERVER_TOKEN, "schéma " + schemeOf(seen.auth[0]));
+  check("If-Match portant l'ETag rendu par le GET",
+    seen.ifMatch[0] === seen.sentEtag[0], seen.ifMatch[0] || "(aucun)");
+
+  report = await reportText();
+  check("rapport : statut HTTP du dépôt",
+    /Statut HTTP : 200/.test(report), report.slice(0, 200));
+  check("rapport : version publiée",
+    /Version publiée/.test(report) && report.indexOf(afterFirst.version) >= 0,
+    report.slice(0, 200));
+  check("rapport : ETag renvoyé par le service",
+    report.indexOf('"catalogue-2"') >= 0, report.slice(0, 240));
+  check("rapport : date de modification renvoyée par le service",
+    report.indexOf(MODIFIED_AT) >= 0, report.slice(0, 240));
+  check("rapport : vérification sur l'adresse de lecture",
+    /Vérification/.test(report) && report.indexOf(readUrl) >= 0, report.slice(0, 320));
+  check("vérification effectuée par GET sur l'adresse de lecture",
+    seen.readRequests > readRequestsBefore, seen.readRequests + " requête(s) de lecture");
+  check("lecture de vérification sans jeton",
+    seen.readAuth.every((value) => value === ""), seen.readAuth.length + " en-tête(s) d'accès examiné(s)");
+  await shot("08-depot-https");
+
+  /* ── 18e. Jeton oublié : refus local, aucune requête ────────────────────── */
+  await click('[data-act="token-clear"]');
+  await wait(600);
+  check("bouton d'oubli : plus aucun jeton conservé",
+    (await js("window.__adminState.hasToken")) === false);
+  check("jeton effacé des préférences",
+    fs.readFileSync(prefsPath, "utf-8").indexOf("publishTokenCipher") < 0,
+    "clé encore présente");
+  const requestsBeforeNoToken = seen.requests;
+  await publish();
+  report = await reportText();
+  check("sans jeton : publication refusée avec un message qui parle du jeton",
+    /jeton/i.test(report), report.slice(0, 240));
+  check("sans jeton : aucune requête émise",
+    seen.requests === requestsBeforeNoToken, seen.requests + " requête(s)");
+
+  // Le jeton est remis en place pour la suite.
+  await setField("e-token", SERVER_TOKEN);
+  await wait(900);
+  check("jeton de nouveau enregistré",
+    (await js("window.__adminState.hasToken")) === true);
+
+  /* ── 18f. Dépôt http refusé : le jeton y serait en clair ────────────────── */
+  const requestsBeforeHttp = seen.requests;
+  const readRequestsBeforeHttp = seen.readRequests;
+  const tlsBeforeHttp = seen.tlsAttempts;
+  await setField("e-share", readUrl);
+  await wait(250);
+  check("destination http : dépôt annoncé comme refusé",
+    /refusée/.test(await js("document.getElementById('share-note').textContent")),
+    await js("document.getElementById('share-note').textContent"));
+  check("destination http : jeton masqué et inutilisable",
+    (await js("document.getElementById('row-token').hidden")) === true &&
+      (await js("document.getElementById('e-token').disabled")) === true);
+  await publish();
+  report = await reportText();
+  check("destination http avec un jeton : refus expliqué",
+    /HTTPS/.test(report) && /clair/.test(report), report.slice(0, 260));
+  check("destination http : aucune requête émise",
+    seen.requests === requestsBeforeHttp && seen.readRequests === readRequestsBeforeHttp &&
+      seen.tlsAttempts === tlsBeforeHttp,
+    seen.requests + " requête(s) de dépôt, " + seen.readRequests + " de lecture");
+
+  /* ── 18g. ETag absent : dépôt accepté, avertissement ────────────────────── */
+  await setField("e-share", writeUrl);
+  await wait(250);
+  await setField("e-read", readUrl);
+  await wait(250);
+  mode = "noEtag";
+  await publish();
+  const afterNoEtag = await publishedState();
+  report = await reportText();
+  check("sans ETag : dépôt accepté",
+    afterNoEtag.version !== afterFirst.version,
+    afterFirst.version + " -> " + afterNoEtag.version);
+  check("sans ETag : aucun If-Match envoyé",
+    lastItem(seen.ifMatch) === "", lastItem(seen.ifMatch) || "(aucun)");
+  check("sans ETag : avertissement dans le rapport",
+    /Avertissement/.test(report) && /ETag/.test(report), report.slice(0, 320));
+  check("sans ETag : avertissement signalé en ton d'alerte",
+    (await reportTone()) === "warn");
+
+  /* ── 18h. Dépôt suivant : le jeton vient du coffre ──────────────────────── */
+  mode = "normal";
+  const putsBeforeSecond = seen.puts;
+  await publish();
+  check("dépôt suivant accepté",
+    seen.puts === putsBeforeSecond + 1, seen.puts + " dépôt(s)");
+  check("jeton relu depuis le coffre, sans le ressaisir",
+    lastItem(seen.auth) === "Bearer " + SERVER_TOKEN, "schéma " + schemeOf(lastItem(seen.auth)));
+  check("nouvel ETag utilisé en If-Match",
+    lastItem(seen.ifMatch) === lastItem(seen.sentEtag) && lastItem(seen.ifMatch) !== "",
+    lastItem(seen.ifMatch) || "(aucun)");
+
+  /* ── 18i. 412 : personne n'écrase le travail d'un autre ─────────────────── */
+  mode = "conflict";
+  const putsBeforeConflict = seen.puts;
+  const putAttemptsBeforeConflict = seen.putAttempts;
+  await publish();
+  report = await reportText();
+  check("412 : conflit expliqué et marche à suivre donnée",
+    /changé depuis la lecture/.test(report) && /Charger le catalogue publié/.test(report),
+    report.slice(0, 320));
+  check("412 : un seul essai, aucun réessai silencieux",
+    seen.putAttempts - putAttemptsBeforeConflict === 1,
+    (seen.putAttempts - putAttemptsBeforeConflict) + " essai(s) de PUT");
+  check("412 : rien n'a été écrit côté service",
+    seen.puts === putsBeforeConflict, seen.puts + " dépôt(s) enregistré(s)");
+
+  /* ── 18j. 413, 503, 400, 500, 401 : messages distincts ──────────────────── */
+  mode = "tooLarge";
+  await publish();
+  report = await reportText();
+  check("413 : message nommant la limite de 1 Mo",
+    /1 Mo/.test(report) && /Allégez/.test(report), report.slice(0, 240));
+
+  mode = "unavailable";
+  await publish();
+  report = await reportText();
+  check("503 : service indisponible expliqué",
+    /service de dépôt est indisponible/.test(report), report.slice(0, 240));
+
+  mode = "badRequest";
+  await publish();
+  report = await reportText();
+  check("400 : corps refusé expliqué",
+    /HTTP 400/.test(report) && /objet JSON/.test(report), report.slice(0, 240));
+
+  mode = "serverError";
+  await publish();
+  report = await reportText();
+  check("code inattendu : message générique nommant le code",
+    /HTTP 500/.test(report), report.slice(0, 240));
+
+  mode = "unauthorized";
+  const getAttemptsBefore401 = seen.getAttempts;
+  const putAttemptsBefore401 = seen.putAttempts;
+  await publish();
+  report = await reportText();
+  check("401 : jeton refusé et marche à suivre donnée",
+    /Jeton de publication refusé/.test(report) && /nouveau jeton/.test(report),
+    report.slice(0, 280));
+  check("401 : aucun réessai en boucle",
+    seen.getAttempts - getAttemptsBefore401 === 1 &&
+      seen.putAttempts === putAttemptsBefore401,
+    (seen.getAttempts - getAttemptsBefore401) + " GET, " +
+      (seen.putAttempts - putAttemptsBefore401) + " PUT");
+  mode = "normal";
+
+  /* ── 18k. Adresse inexistante ───────────────────────────────────────────── */
+  await setField("e-share", missingUrl);
+  await wait(250);
+  check("compte rendu effacé au changement de destination",
+    (await reportHidden()) === true);
+  const putsBeforeMissing = seen.puts;
+  await publish();
+  report = await reportText();
+  check("adresse inexistante signalée comme introuvable",
+    /introuvable/i.test(report), report.slice(0, 240));
+  check("adresse inexistante : aucun dépôt tenté",
+    seen.puts === putsBeforeMissing, seen.puts + " dépôt(s) enregistré(s)");
+
+  /* ── 18l. Plafonds du service : 1 Mo ───────────────────────────────────── */
+  await setField("e-share", writeUrl);
+  await wait(250);
+  const savedVisual = await selectedImage();
+  // Sous la limite mais au-dessus du seuil d'avertissement (850 Ko).
+  await js(
+    "(()=>{const s=window.__adminState;const a=s.catalog.apps.find(x=>x.id===s.appId);" +
+    "a.image='data:image/png;base64,'+'A'.repeat(880000);window.__adminRefresh();return 'ok';})()"
+  );
+  const warnBytes = await js(
+    "(()=>{const c=window.__adminState.catalog;" +
+    "return new TextEncoder().encode(JSON.stringify(c,null,2)).length+" + os.EOL.length + ";})()"
+  );
+  console.log("    poids au-dessus du seuil d'avertissement : " + warnBytes + " octets");
+  check("catalogue dans la zone d'avertissement du service",
+    warnBytes > 850000 && warnBytes < 1000000, String(warnBytes));
+  const putsBeforeWarn = seen.puts;
+  await publish();
+  report = await reportText();
+  check("avertissement avant la limite de 1 Mo",
+    /proche de la limite/.test(report), report.slice(0, 320));
+  check("dépôt accepté malgré l'avertissement de taille",
+    seen.puts === putsBeforeWarn + 1, seen.puts + " dépôt(s)");
+
+  // Au-delà de la limite : refus local, sans provoquer de 413 sur le réseau.
+  await js(
+    "(()=>{const s=window.__adminState;const a=s.catalog.apps.find(x=>x.id===s.appId);" +
+    "a.image='data:image/png;base64,'+'A'.repeat(1100000);window.__adminRefresh();return 'ok';})()"
+  );
+  const overBytes = await js(
+    "(()=>{const c=window.__adminState.catalog;" +
+    "return new TextEncoder().encode(JSON.stringify(c,null,2)).length+" + os.EOL.length + ";})()"
+  );
+  console.log("    poids au-dessus de la limite : " + overBytes + " octets");
+  check("catalogue au-delà de 1 Mo", overBytes > 1000000, String(overBytes));
+  const requestsBeforeOver = seen.requests;
+  const putsBeforeOver = seen.puts;
+  await publish();
+  report = await reportText();
+  check("au-delà de 1 Mo : refus local expliqué",
+    /1 Mo/.test(report) && /Allégez/.test(report), report.slice(0, 240));
+  check("au-delà de 1 Mo : aucune requête émise",
+    seen.requests === requestsBeforeOver && seen.puts === putsBeforeOver,
+    seen.requests + " requête(s)");
+
+  const apiValidation = await js(
+    "window.admin.validate(window.__adminState.catalog).then(" +
+    "r=>({ok:r.ok,problems:r.problems,warnings:r.warnings}))"
+  );
+  check("barre d'état : poids refusé par le service signalé avant publication",
+    !!apiValidation && apiValidation.ok === false &&
+      (apiValidation.problems || []).some((p) => /1 Mo/.test(p)),
+    JSON.stringify(apiValidation && apiValidation.problems));
+
+  // Nettoyage : le visuel factice disparaît, la vignette mémorisée revient.
+  await js(
+    "(()=>{const s=window.__adminState;const a=s.catalog.apps.find(x=>x.id===s.appId);" +
+    (savedVisual ? "a.image=" + JSON.stringify(savedVisual) + ";" : "delete a.image;") +
+    "window.__adminRefresh();return 'ok';})()"
+  );
+  const restoredImage = await selectedImage();
+  check("visuel factice retiré après les essais de taille",
+    restoredImage === savedVisual, String(restoredImage).slice(0, 24));
+
+  /* ── 18m. Adresse de lecture déduite ───────────────────────────────────── */
+  await setField("e-read", "");
+  await wait(250);
+  check("adresse de lecture déduite annoncée dans l'interface",
+    /:3000/.test(await js("document.getElementById('read-note').textContent")),
+    await js("document.getElementById('read-note').textContent"));
+  const versionBeforeDerived = (await publishedState()).version;
+  await publish();
+  const afterDerived = await publishedState();
+  report = await reportText();
+  check("adresse déduite : dépôt accepté",
+    afterDerived.version !== versionBeforeDerived,
+    versionBeforeDerived + " -> " + afterDerived.version);
+  check("adresse déduite injoignable : la vérification le dit",
+    /Vérification impossible/.test(report) && /:3000/.test(report), report.slice(0, 340));
+  check("adresse déduite injoignable : avertissement signalé",
+    (await reportTone()) === "warn");
+
+  /* ── 18n. Relire le catalogue publié ───────────────────────────────────── */
+  await setField("e-read", readUrl);
+  await wait(250);
+  const servedVersion = JSON.parse(lastItem(seen.bodies).toString("utf-8")).version;
+  await click('[data-act="share-load"]');
+  await wait(1400);
+  check("catalogue publié lu par https, certificat épinglé",
+    (await js("window.__adminState.catalog.version")) === servedVersion,
+    (await js("window.__adminState.catalog.version")) + " / servi : " + servedVersion);
+  check("cible d'enregistrement inchangée après lecture",
+    (await js("window.__adminState.filePath")) === CATALOG,
+    await js("window.__adminState.filePath"));
+
+  await setField("e-share", readUrl);
+  await wait(250);
+  await click('[data-act="share-load"]');
+  await wait(1400);
+  check("catalogue publié lu par http, comme un poste",
+    (await js("window.__adminState.catalog.version")) === servedVersion,
+    await js("window.__adminState.catalog.version"));
+  check("lecture http sans aucun jeton",
+    seen.readAuth.every((value) => value === ""),
+    seen.readAuth.length + " en-tête(s) d'accès examiné(s)");
+
+  /* ── 18o. Non-régression : la destination par dossier ──────────────────── */
+  await setField("e-share", SHARE);
+  await wait(250);
+  check("champ du jeton masqué de nouveau pour un dossier",
+    (await js("document.getElementById('row-token').hidden")) === true);
+  check("champ de l'empreinte masqué pour un dossier",
+    (await js("document.getElementById('row-fingerprint').hidden")) === true);
+  check("sélecteur de dossier réactivé",
+    (await js("document.getElementById('share-choose').disabled")) === false);
+  check("aide de la destination revenue au dossier",
+    /Dossier de publication/.test(await js("document.getElementById('share-note').textContent")));
+
+  const folderBefore = JSON.parse(fs.readFileSync(path.join(SHARE, "apps.json"), "utf-8"));
+  const requestsBeforeFolder = seen.requests;
+  const putsBeforeFolder = seen.puts;
+  await publish();
+  const folderAfter = JSON.parse(fs.readFileSync(path.join(SHARE, "apps.json"), "utf-8"));
+  check("publication par dossier toujours fonctionnelle",
+    folderAfter.version !== folderBefore.version,
+    folderBefore.version + " -> " + folderAfter.version);
+  check("aucune requête pour une destination par dossier",
+    seen.requests === requestsBeforeFolder && seen.puts === putsBeforeFolder,
+    seen.requests + " requête(s)");
+  check("aucun fichier temporaire laissé sur le partage",
+    !fs.existsSync(path.join(SHARE, "apps.json.tmp")));
+  report = await reportText();
+  check("rapport de publication par dossier rendu",
+    /Version publiée/.test(report) && /Vérification/.test(report), report.slice(0, 240));
+
+  /* ── 18p. Fermeture des serveurs d'essai ───────────────────────────────── */
+  const closeServer = async (server, label) => {
+    let closed = false;
+    try {
+      await withTimeout(new Promise((resolve) => {
+        server.close(resolve);
+        if (typeof server.closeAllConnections === "function") server.closeAllConnections();
+      }), 5000, "arrêt " + label);
+      closed = true;
+    } catch (error) {
+      console.log("    (arrêt " + label + " : " + error.message + ")");
+    }
+    return closed && server.listening === false;
+  };
+  check("serveur de dépôt arrêté", await closeServer(writeServer, "du dépôt"));
+  check("serveur de lecture arrêté", await closeServer(readServer, "de lecture"));
+
+  const portIsFree = (port) => new Promise((resolve) => {
+    const probe = http.createServer();
+    probe.once("error", () => resolve(false));
+    probe.listen(port, "127.0.0.1", () => probe.close(() => resolve(true)));
+  });
+  check("port du serveur de dépôt libéré", (await portIsFree(writePort)) === true, String(writePort));
+  check("port du serveur de lecture libéré", (await portIsFree(readPort)) === true, String(readPort));
+
+  /* ── 19. Silence de la console ─────────────────────────────────────────── */
   check("aucune erreur JavaScript", consoleErrors.length === 0, consoleErrors.join(" | "));
 }
 
@@ -1199,6 +1986,15 @@ app.whenReady().then(async () => {
     failures += 1;
     results.push("  ÉCHEC  exception : " + (error && error.stack ? error.stack : error));
   }
+
+  // Le jeton ne doit apparaître nulle part : ni dans la trace du test, ni dans
+  // un message d'erreur, ni dans un détail de contrôle. On le cherche donc
+  // explicitement dans tout ce qui a été produit — le code envoyé au rendu est
+  // masqué à la source pour que cette recherche porte sur l'outil, pas sur le
+  // harnais qui saisit le jeton.
+  const leaked = trace.concat(results).filter((line) => line.indexOf(SERVER_TOKEN) >= 0);
+  check("jeton de publication absent de toute la trace et de tous les messages",
+    leaked.length === 0, leaked.length + " occurrence(s)");
 
   console.log("\n=== Auto-vérification de l'administration ===");
   results.forEach((line) => console.log(line));

@@ -2,7 +2,11 @@
    StrasEdu — pont de l'application d'administration
    --------------------------------------------------------------------------
    Surface étroite : lire et écrire un catalogue, choisir des fichiers, et
-   publier. Aucune exécution de programme, aucune URL arbitraire.
+   publier (dossier partagé ou service HTTPS). Aucune exécution de programme,
+   aucune URL arbitraire.
+
+   Le jeton de publication ne traverse jamais ce pont en sens inverse : il est
+   confié à la couche native, qui le chiffre, et n'en revient qu'un booléen.
    ========================================================================== */
 
 "use strict";
@@ -13,10 +17,14 @@ contextBridge.exposeInMainWorld("admin", {
   /** État initial : catalogue courant, chemins mémorisés, thème système. */
   getState: () => ipcRenderer.invoke("admin:state"),
 
+  /** Mémoriser destination, adresse de lecture, empreinte et jeton. Le jeton
+      n'est écrit en clair nulle part : voir admin/main.js. */
+  setPrefs: (patch) => ipcRenderer.invoke("admin:set-prefs", patch),
+
   /** Choisir un catalogue existant. */
   open: () => ipcRenderer.invoke("admin:open"),
 
-  /** Lire le catalogue actuellement publié sur le partage. */
+  /** Lire le catalogue actuellement publié (dossier ou adresse http(s)). */
   loadShare: () => ipcRenderer.invoke("admin:load-share"),
 
   /** Enregistrer (valide avant d'écrire). */
@@ -28,7 +36,9 @@ contextBridge.exposeInMainWorld("admin", {
   /** Choisir le dossier de publication. */
   chooseShare: () => ipcRenderer.invoke("admin:choose-share"),
 
-  /** Publier : validation, version incrémentée, écriture atomique. */
+  /** Publier : validation, version incrémentée, dépôt (fichier ou service
+      HTTPS avec certificat épinglé) puis relecture de ce que les postes
+      reçoivent réellement. */
   publish: (catalog) => ipcRenderer.invoke("admin:publish", catalog),
 
   /** Choisir le logo officiel (réduit par la couche native). */

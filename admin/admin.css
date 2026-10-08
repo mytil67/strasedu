@@ -937,10 +937,20 @@ body.admin-body-root {
   font: inherit;
   font-size: var(--fs-base);
   color: var(--text-1);
-  background: var(--surface-inset);
+  /* Le champ de destination est desormais editable (dossier ou URL) : il ne
+     doit donc plus porter l'habillage d'un champ en lecture seule. */
+  background: var(--surface-3);
   border: 1px solid var(--stroke-strong);
   border-radius: var(--r-md);
   user-select: text;
+}
+
+/* Le selecteur de dossier ne sert plus a rien quand la destination est une
+   adresse http : desactive, il doit se voir comme tel — app.css n'habille que
+   .iconbtn:disabled. */
+.share-row .btn:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .version-row input {
@@ -976,14 +986,43 @@ body.admin-body-root {
 
 /* ── Boîte de dialogue de publication ────────────────────────────────────── */
 
+/* Le rapport de publication remplace la boîte de dialogue d'origine : il est
+   rendu dans l'onglet Application. La couleur de bordure dit l'issue sans
+   ajouter de jeton de design (l'accent pour un succès, l'ambre déjà employé
+   pour les avertissements d'administration pour un échec). */
 .publish-report {
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
   padding: var(--sp-4);
   border-radius: var(--r-lg);
+  border-left: 3px solid var(--accent);
   background: var(--surface-inset);
   text-align: left;
+  max-width: 760px;
+}
+
+.publish-report[data-tone="warn"] {
+  border-left-color: #b45309;
+}
+
+/* ── Configuration du dépôt https ────────────────────────────────────────── */
+
+/* L'empreinte se recopie à la main : une chasse fixe évite de confondre « 0 »
+   et « O », et la coupe des longues valeurs reste lisible. */
+#e-fingerprint {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--fs-sm);
+  letter-spacing: 0.02em;
+}
+
+/* Les notes d'aide s'empilent sous leur champ : deux notes de suite restent
+   lisibles, comme pour le partage. */
+#row-token .admin-note,
+#row-fingerprint .admin-note,
+#row-read .admin-note {
+  flex: 1 1 100%;
+  margin: 0;
 }
 
 .publish-report ul {

@@ -379,15 +379,66 @@
           <div class="field">
             <span>Publication</span>
             <div class="share-row">
-              <input type="text" id="e-share" readonly placeholder="Aucun partage configuré">
-              <button class="btn btn-sm" type="button" data-act="share-choose">Choisir le dossier…</button>
+              <input type="text" id="e-share" maxlength="2048" autocomplete="off" spellcheck="false"
+                     placeholder="\\serveur\StrasEdu ou https://serveur/strasedu/apps.json"
+                     aria-describedby="share-help share-note">
+              <button class="btn btn-sm" type="button" data-act="share-choose" id="share-choose">
+                Choisir le dossier…
+              </button>
               <button class="btn btn-sm" type="button" data-act="share-load">Charger le catalogue publié</button>
             </div>
-            <span class="admin-note">
-              Le catalogue est écrit dans <code>apps.json</code> à la racine de ce dossier,
-              par fichier temporaire puis remplacement.
+            <span class="admin-note" id="share-help">
+              Dossier partagé (ex. <code>\\serveur\StrasEdu</code>) : le catalogue y est écrit dans
+              <code>apps.json</code>, par fichier temporaire puis remplacement. Adresse complète du
+              document (ex. <code>https://serveur/strasedu/apps.json</code>) : il y est déposé par
+              requête <code>PUT</code> — et jamais en <code>http</code>, où le jeton serait en clair.
+            </span>
+            <span class="admin-note" id="share-note"></span>
+          </div>
+
+          <!-- Le jeton ne sert qu'au dépôt https : en http il circulerait en
+               clair, et pour un dossier il n'a aucun sens. -->
+          <div class="field" id="row-token" hidden>
+            <span>Jeton de publication <em>(dépôt https)</em></span>
+            <div class="share-row">
+              <input type="password" id="e-token" maxlength="512" autocomplete="off" spellcheck="false"
+                     placeholder="sedu_…" aria-describedby="token-note token-help">
+              <button class="btn btn-sm" type="button" data-act="token-reveal" id="token-reveal"
+                      aria-label="Afficher le jeton de publication" aria-pressed="false">Afficher</button>
+              <button class="btn btn-sm" type="button" data-act="token-clear" id="token-clear">
+                Oublier le jeton
+              </button>
+            </div>
+            <span class="admin-note" id="token-note"></span>
+            <span class="admin-note" id="token-help">
+              Envoyé dans l'en-tête <code>Authorization: Bearer …</code> du seul dépôt https. Il n'est
+              jamais écrit en clair : la couche native le chiffre avant de l'enregistrer.
             </span>
           </div>
+
+          <div class="field" id="row-fingerprint" hidden>
+            <span>
+              Empreinte SHA-256 du certificat
+              <em>(obligatoire pour publier en https)</em>
+            </span>
+            <div class="share-row">
+              <input type="text" id="e-fingerprint" maxlength="128" autocomplete="off" spellcheck="false"
+                     placeholder="AA:BB:CC:… ou AABBCC…" aria-describedby="fingerprint-note">
+            </div>
+            <span class="admin-note" id="fingerprint-note"></span>
+          </div>
+
+          <div class="field" id="row-read" hidden>
+            <span>Adresse de lecture des postes <em>(facultative)</em></span>
+            <div class="share-row">
+              <input type="text" id="e-read" maxlength="2048" autocomplete="off" spellcheck="false"
+                     placeholder="http://serveur:3000/strasedu/apps.json"
+                     aria-describedby="read-note">
+            </div>
+            <span class="admin-note" id="read-note"></span>
+          </div>
+
+          <div class="publish-report" id="publish-report" role="status" aria-live="polite" hidden></div>
         </div>
       </div>
     </section>

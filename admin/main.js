@@ -8,7 +8,8 @@
      • lui affecter une icône parmi celles de StrasEdu ;
      • créer et paramétrer les catégories (icône, couleur, description) ;
      • définir le logo officiel de l'établissement ;
-     • publier le catalogue sur le partage réseau, version incrémentée.
+     • publier le catalogue vers un dossier partagé ou une adresse HTTP,
+       version incrémentée.
 
    La validation est celle de l'application (lib/catalog.js) : ce que
    l'administration accepte, les postes l'acceptent.
@@ -16,10 +17,22 @@
 
 "use strict";
 
-const { app, BrowserWindow, dialog, ipcMain, nativeImage, nativeTheme, shell } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  nativeImage,
+  nativeTheme,
+  safeStorage,
+  shell
+} = require("electron");
 const fs = require("fs");
+const http = require("http");
+const https = require("https");
 const os = require("os");
 const path = require("path");
+const tls = require("tls");
 
 const {
   normalizeCatalog,
@@ -117,8 +130,14 @@ function readPrefs() {
   return Object.assign({}, stored, environmentOverrides());
 }
 
-function writePrefs(patch) {
+function writePrefs(patch, remove) {
   const next = Object.assign(readPrefs(), patch || {});
+  // Un jeton en clair ecrit par une version anterieure n'a rien a faire sur le
+  // disque : on l'oublie a la premiere ecriture.
+  delete next.publishToken;
+  (remove || []).forEach((key) => {
+    delete next[key];
+  });
   try {
     fs.mkdirSync(path.dirname(prefsFile()), { recursive: true });
     fs.writeFileSync(prefsFile(), JSON.stringify(next, null, 2), "utf-8");
@@ -165,6 +184,559 @@ function tooHeavyMessage(bytes) {
     Math.round(MAX_CATALOG_BYTES / 1024) +
     " Ko les postes le refusent en entier. Allégez les visuels (Onglet Outils et Département)."
   );
+}
+
+/* ─── Publication par HTTPS ─────────────────────────────────────────────── */
+
+/**
+ * Delai maximal d'un echange, redirections comprises. Un serveur muet doit se
+ * signaler par une erreur explicite : l'administrateur attend devant sa fenetre
+ * et ne doit pas croire a une publication en cours.
+ */
+const PUBLISH_TIMEOUT_MS = 12000;
+
+/** Meme plafond de redirections que fetchCatalog() dans l'application. */
+const PUBLISH_REDIRECT_MAX = 4;
+
+/**
+ * Plafonds du service de depot du Raspberry : il refuse tout document au-dela
+ * de 1 Mo, et l'outil previent des 850 Ko. Inutile d'aller chercher un refus
+ * 413 sur le reseau, et inutile de laisser croire qu'un catalogue trop lourd
+ * sera diffuse.
+ */
+const MAX_API_BYTES = 1000000;
+const WARN_API_BYTES = 850000;
+
+/** Port de lecture du service : le depot est en https sur 443, la lecture en
+ *  http sur 3000, sans jeton ni certificat. */
+const READ_PORT = 3000;
+
+/** Bornes des preferences saisies dans l'onglet Application. */
+const MAX_TOKEN_CHARS = 512;
+const MAX_FINGERPRINT_CHARS = 128;
+
+/**
+ * Une destination en URL se depose par requete ; tout le reste est un dossier
+ * partage. C'est le seul critere qui choisit le mode de publication, pour que
+ * le comportement des installations existantes (partage SMB) soit inchange.
+ */
+function isHttpDestination(destination) {
+  return /^https?:\/\//i.test(String(destination || "").trim());
+}
+
+/**
+ * Seul https transporte le jeton. En http il circulerait en clair sur le
+ * reseau : l'outil refuse donc d'y publier, meme si l'adresse repond.
+ */
+function isHttpsDestination(destination) {
+  return /^https:\/\//i.test(String(destination || "").trim());
+}
+
+/**
+ * Adresse montrable. Les identifiants eventuellement poses dans l'URL
+ * (http://utilisateur:motdepasse@serveur/...) ne doivent apparaitre ni dans un
+ * rapport, ni dans un message d'erreur, ni dans une trace.
+ */
+function displayUrl(value) {
+  return String(value || "").replace(/\/\/[^/@\s]*@/, "//");
+}
+
+/**
+ * Empreinte de certificat comparable : les separateurs « : » et les espaces
+ * sont ignores, et la casse n'importe pas — un administrateur recopie souvent
+ * l'empreinte telle que Windows l'affiche.
+ */
+function normalizeFingerprint(value) {
+  return String(value || "").replace(/[^0-9a-fA-F]/g, "").toUpperCase();
+}
+
+/** Une empreinte SHA-256 utilisable : exactement 64 caracteres hexadecimaux. */
+function fingerprintIsValid(value) {
+  return /^[0-9A-F]{64}$/.test(normalizeFingerprint(value));
+}
+
+/**
+ * Agent TLS qui epingle le certificat du serveur.
+ *
+ * Le certificat du Raspberry n'est pas reconnu par Windows : la chaine ne peut
+ * donc pas etre validee, et `rejectUnauthorized: false` est indispensable. Ce
+ * reglage n'est acceptable QU'accompagne de ce controle : sur `secureConnect`,
+ * l'empreinte SHA-256 du certificat presente est comparee a celle attendue, et
+ * la connexion est coupee AVANT que la socket ne soit remise au client HTTP —
+ * donc avant que le moindre octet, et en particulier l'en-tete Authorization,
+ * ne parte. Desactiver la verification sans ce controle laisserait n'importe
+ * quel serveur se faire passer pour le Pi et capter le jeton.
+ */
+function pinnedAgent(expected) {
+  const agent = new https.Agent({ keepAlive: false });
+
+  agent.createConnection = function (options, callback) {
+    const socket = tls.connect(Object.assign({}, options, { rejectUnauthorized: false }));
+
+    const refuse = function (message) {
+      socket.destroy();
+      callback(explicitError(message));
+    };
+
+    socket.once("secureConnect", function () {
+      let seen = "";
+      try {
+        const certificate = socket.getPeerCertificate();
+        seen = normalizeFingerprint(certificate && certificate.fingerprint256);
+      } catch {
+        seen = "";
+      }
+
+      if (!seen) {
+        refuse("Certificat du serveur illisible : publication interrompue avant tout envoi.");
+        return;
+      }
+      if (seen !== expected) {
+        refuse("Le certificat présenté par le serveur ne correspond pas à l'empreinte attendue (" +
+          seen.slice(0, 8) + "… au lieu de " + expected.slice(0, 8) +
+          "…) : publication interrompue avant tout envoi.");
+        return;
+      }
+      callback(null, socket);
+    });
+
+    socket.once("error", function (error) {
+      callback(error);
+    });
+  };
+
+  return agent;
+}
+
+/* ─── Jeton de publication : jamais en clair ─────────────────────────────── */
+
+/**
+ * Jeton fourni pendant la session, quand le systeme ne propose pas de coffre.
+ * Il n'est alors jamais ecrit : il ne vit que le temps de la session de l'outil.
+ */
+let sessionToken = null;
+
+/** Coffre du systeme disponible (DPAPI sous Windows) ? */
+function secureStorageAvailable() {
+  try {
+    return safeStorage.isEncryptionAvailable();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Jeton utilisable a l'instant : la memoire d'abord, puis le coffre du systeme.
+ * Le dechiffrement peut echouer — profil different, coffre indisponible : on
+ * repond alors « pas de jeton », jamais un jeton approximatif.
+ */
+function storedToken() {
+  if (sessionToken) return sessionToken;
+  const cipher = readPrefs().publishTokenCipher;
+  if (!cipher || !secureStorageAvailable()) return null;
+  try {
+    return safeStorage.decryptString(Buffer.from(String(cipher), "base64")) || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Adresse de lecture des postes, deduite de l'adresse de depot quand elle n'est
+ * pas renseignee : meme hote, meme chemin, en http sur le port 3000 — c'est le
+ * couple decrit par le service (depot https avec jeton, lecture http sans).
+ */
+function derivedReadUrl(writeUrl) {
+  try {
+    const parsed = new URL(String(writeUrl || "").trim());
+    if (parsed.protocol !== "https:") return "";
+    const host = parsed.hostname.indexOf(":") >= 0 ? "[" + parsed.hostname + "]" : parsed.hostname;
+    return "http://" + host + ":" + READ_PORT + parsed.pathname + parsed.search;
+  } catch {
+    return "";
+  }
+}
+
+/** Adresse de lecture effective : celle saisie, sinon celle deduite. */
+function readAddress(prefs) {
+  const stored = String((prefs && prefs.readUrl) || "").trim();
+  return isHttpDestination(stored) ? stored : derivedReadUrl((prefs && prefs.sharePath) || "");
+}
+
+/** Message du service de depot : il nomme la limite et la consequence. */
+function apiTooHeavyMessage(bytes) {
+  return "Le catalogue pèse " + Math.round(bytes / 1024) +
+    " Ko ; le service de dépôt refuse au-delà de 1 Mo. Allégez les visuels " +
+    "(Onglet Outils et Département).";
+}
+
+function apiNearLimitMessage(bytes) {
+  return "Le catalogue pèse " + Math.round(bytes / 1024) +
+    " Ko : proche de la limite de 1 Mo du service de dépôt.";
+}
+
+/** En-tetes communs : le serveur doit pouvoir identifier l'outil appelant. */
+function baseHeaders() {
+  return {
+    Accept: "application/json",
+    "User-Agent": "StrasEdu-Administration/" + app.getVersion()
+  };
+}
+
+/** Erreur deja redigee pour l'administrateur : son message part tel quel. */
+function explicitError(message) {
+  const error = new Error(message);
+  error.explicit = true;
+  return error;
+}
+
+function timeoutError() {
+  return explicitError(
+    "Le serveur n'a pas répondu dans les " + Math.round(PUBLISH_TIMEOUT_MS / 1000) + " secondes."
+  );
+}
+
+/**
+ * Message commun aux deux modes, selon le code repondu. Il dit quoi faire :
+ * « HTTP 412 » seul ne dirait pas a l'administrateur que quelqu'un d'autre a
+ * publie entre-temps.
+ */
+function httpFailure(status, method) {
+  if (status === 400) {
+    return "Le serveur a refusé le document (HTTP 400) : il attend un objet JSON.";
+  }
+  if (status === 401) {
+    return "Jeton de publication refusé (HTTP 401) : demandez un nouveau jeton au " +
+      "service qui gère le dépôt. L'outil ne réessaie pas.";
+  }
+  if (status === 403) return "Le serveur refuse l'accès à cette adresse (HTTP 403).";
+  if (status === 404) return "Adresse introuvable sur le serveur.";
+  if (status === 405) {
+    return method === "PUT"
+      ? "Le serveur n'accepte pas le dépôt (PUT) à cette adresse."
+      : "Le serveur n'accepte pas la lecture (GET) à cette adresse.";
+  }
+  if (status === 412) {
+    return "Le catalogue publié a changé depuis la lecture : il a été modifié par " +
+      "quelqu'un d'autre. Rechargez « Charger le catalogue publié », puis republiez.";
+  }
+  if (status === 413) {
+    return "Le serveur refuse le document : il dépasse 1 Mo. Allégez les visuels " +
+      "(Onglets Outils et Département).";
+  }
+  if (status === 503) {
+    return "Le service de dépôt est indisponible sur le serveur (service désactivé, " +
+      "ou jeton non configuré côté Raspberry).";
+  }
+  return "Le serveur a répondu HTTP " + status + ".";
+}
+
+/**
+ * Echange HTTP borne dans le temps, sur le modele de fetchCatalog() de
+ * l'application : suivi des redirections et lecture plafonnee. Le delai couvre
+ * l'ensemble du dialogue ; sinon quatre renvois successifs tiendraient
+ * l'administrateur bien plus longtemps que le delai annonce.
+ *
+ * Le corps envoye est un Buffer : Content-Length compte alors des octets, pas
+ * des caracteres — un catalogue accentue ferait echouer un serveur strict si on
+ * annoncait le nombre de caracteres.
+ */
+function httpExchange(method, url, options, deadline, redirects) {
+  const opts = options || {};
+  return new Promise((resolve, reject) => {
+    const left = deadline - Date.now();
+    if (left <= 0) return reject(timeoutError());
+
+    let target;
+    try {
+      target = new URL(url);
+    } catch {
+      return reject(explicitError("Adresse invalide : " + displayUrl(url)));
+    }
+
+    const client = target.protocol === "https:" ? https : http;
+    const headers = Object.assign(baseHeaders(), opts.headers || {});
+    if (opts.body) headers["Content-Length"] = Buffer.byteLength(opts.body);
+
+    const request = client.request(target, {
+      method,
+      headers,
+      // L'agent epingle est fourni pour https ; sinon, une connexion propre a
+      // cet appel, refermee aussitot : l'outil publie rarement, et une socket
+      // laissee ouverte dans la reserve de l'agent retiendrait le serveur — un
+      // serveur d'essai ne pourrait pas se fermer.
+      agent: opts.agent || false
+    }, (response) => {
+      const status = response.statusCode || 0;
+
+      if (status >= 300 && status < 400 && response.headers.location) {
+        response.resume();
+        if ((redirects || 0) >= PUBLISH_REDIRECT_MAX) {
+          return reject(explicitError(
+            "Trop de redirections (au-delà de " + PUBLISH_REDIRECT_MAX + ")."
+          ));
+        }
+        const next = new URL(response.headers.location, target).toString();
+        return resolve(httpExchange(method, next, opts, deadline, (redirects || 0) + 1));
+      }
+
+      const chunks = [];
+      let size = 0;
+      response.on("data", (chunk) => {
+        size += chunk.length;
+        if (size > MAX_CATALOG_BYTES) {
+          request.destroy();
+          reject(explicitError("Le serveur a renvoyé une réponse trop volumineuse."));
+          return;
+        }
+        chunks.push(chunk);
+      });
+      response.on("end", () => {
+        // Les en-tetes remontent avec le corps : c'est l'ETag qui permet le
+        // controle de concurrence du depot suivant.
+        resolve({
+          status,
+          headers: response.headers,
+          body: Buffer.concat(chunks).toString("utf-8")
+        });
+      });
+    });
+
+    request.setTimeout(left, () => request.destroy(timeoutError()));
+    request.on("error", (error) => {
+      if (error && error.explicit) return reject(error);
+      reject(explicitError("Le serveur est injoignable : " + error.message));
+    });
+
+    if (opts.body) request.write(opts.body);
+    request.end();
+  });
+}
+
+/** Retire le BOM : un serveur peut servir ce que le Bloc-notes a produit. */
+function withoutBom(text) {
+  return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+}
+
+/** Lecture tolerante d'un corps JSON : un serveur peut repondre du texte. */
+function parseJsonBody(text) {
+  try {
+    return JSON.parse(withoutBom(String(text || "")));
+  } catch {
+    return null;
+  }
+}
+
+/** Version portee par un document deja lu. */
+function versionOf(document) {
+  return document && typeof document.version === "string" ? document.version : null;
+}
+
+/**
+ * Relit le catalogue a l'adresse que les postes utilisent (http, sans jeton).
+ * Un service peut accepter le depot et continuer a servir autre chose — cache,
+ * mauvais dossier, chemin different : sans cette relecture, l'administrateur
+ * croirait avoir diffuse. C'est exactement la panne silencieuse qu'on veut voir.
+ */
+async function verifyServedVersion(readUrl, expected) {
+  if (!isHttpDestination(readUrl)) {
+    return {
+      ok: false,
+      address: "",
+      served: null,
+      message: "Vérification non effectuée : adresse de lecture inconnue."
+    };
+  }
+
+  let response;
+  try {
+    // Sans jeton : c'est la lecture des postes, telle quelle.
+    response = await httpExchange("GET", readUrl, {}, Date.now() + PUBLISH_TIMEOUT_MS, 0);
+  } catch (error) {
+    return {
+      ok: false,
+      address: displayUrl(readUrl),
+      served: null,
+      message: "Vérification impossible sur " + displayUrl(readUrl) + " (" + error.message + ")."
+    };
+  }
+
+  if (response.status !== 200) {
+    return {
+      ok: false,
+      address: displayUrl(readUrl),
+      served: null,
+      message: "Le dépôt a été accepté, mais la lecture des postes échoue sur " +
+        displayUrl(readUrl) + " : " + httpFailure(response.status, "GET")
+    };
+  }
+
+  const served = versionOf(parseJsonBody(response.body));
+  if (served !== expected) {
+    return {
+      ok: false,
+      address: displayUrl(readUrl),
+      served,
+      message: "Le serveur a accepté le dépôt (v" + expected + ") mais l'adresse de lecture " +
+        displayUrl(readUrl) + " sert encore la version " + (served || "inconnue") +
+        " : vérifiez le chemin servi aux postes."
+    };
+  }
+
+  return {
+    ok: true,
+    address: displayUrl(readUrl),
+    served,
+    message: "L'adresse de lecture " + displayUrl(readUrl) + " sert bien la version " +
+      expected + "."
+  };
+}
+
+/**
+ * Meme verification pour un dossier : relire le fichier ecrit prouve que le
+ * poste qui le lira y trouvera bien la version annoncee.
+ */
+function verifyServedFile(file, expected) {
+  try {
+    const served = versionOf(readCatalogFile(file));
+    if (served !== expected) {
+      return {
+        ok: false,
+        served,
+        message: "Le fichier publié (v" + expected + ") porte la version " +
+          (served || "inconnue") + " : vérifiez le dossier de publication."
+      };
+    }
+    return { ok: true, served, message: "Fichier relu après écriture : version " + expected + "." };
+  } catch (error) {
+    return {
+      ok: false,
+      served: null,
+      message: "Le fichier publié n'a pas pu être relu (" + error.message + ")."
+    };
+  }
+}
+
+/** Refus de publication, dans la forme attendue par l'interface. */
+function refusePublish(problems, check, warnings) {
+  return { ok: false, problems, badIds: check.badIds, warnings };
+}
+
+/**
+ * Depot par le service du Raspberry : lecture prealable de l'ETag, envoi du
+ * document avec If-Match, puis relecture de ce que les postes recoivent.
+ *
+ * Rien n'est retente en silence : un 412 signifie que quelqu'un d'autre a
+ * publie, et rejouer le depot ecraserait son travail. Le jeton, lui, ne circule
+ * que sur https, vers un certificat dont l'empreinte est verifiee avant tout
+ * envoi.
+ */
+async function publishOverHttps(url, published, previousVersion, prefs, check, bytes) {
+  const warnings = check.warnings.slice();
+
+  // 1. Le jeton ne circule jamais en clair.
+  if (!isHttpsDestination(url)) {
+    return refusePublish([
+      "Publication refusée : le jeton de publication ne circule qu'en HTTPS. En http, " +
+        "il passerait en clair sur le réseau, lisible par n'importe qui — le port " + READ_PORT +
+        " ne sert qu'à la lecture du catalogue."
+    ], check, warnings);
+  }
+
+  // 2. Sans empreinte, aucune confiance possible dans le certificat presente.
+  const rawFingerprint = String(prefs.certFingerprint || "").trim();
+  if (!rawFingerprint) {
+    return refusePublish([
+      "Publication refusée : aucune empreinte de certificat n'est enregistrée. Sans elle, " +
+        "l'outil ne peut pas vérifier l'identité du serveur et refuse de s'y connecter " +
+        "(Onglet Application → Empreinte SHA-256 du certificat)."
+    ], check, warnings);
+  }
+  const fingerprint = normalizeFingerprint(rawFingerprint);
+  if (!fingerprintIsValid(fingerprint)) {
+    return refusePublish([
+      "Empreinte de certificat illisible : 64 caractères hexadécimaux sont attendus " +
+        "(les « : » et la casse n'ont pas d'importance)."
+    ], check, warnings);
+  }
+
+  // 3. Le jeton est indispensable : le service repondrait 401.
+  const token = storedToken();
+  if (!token) {
+    return refusePublish([
+      "Publication refusée : aucun jeton de publication n'est enregistré. Renseignez-le " +
+        "dans l'onglet Application (il est chiffré par le système avant d'être écrit)."
+    ], check, warnings);
+  }
+
+  // 4. Taille : inutile d'aller chercher un refus 413 sur le reseau.
+  if (bytes > MAX_API_BYTES) {
+    return refusePublish([apiTooHeavyMessage(bytes)], check, warnings);
+  }
+  if (bytes > WARN_API_BYTES) warnings.push(apiNearLimitMessage(bytes));
+
+  const agent = pinnedAgent(fingerprint);
+  const withToken = function (extra) {
+    return Object.assign({ Authorization: "Bearer " + token }, extra || {});
+  };
+
+  try {
+    // Lecture prealable : c'est elle qui donne l'ETag a renvoyer en If-Match.
+    let head;
+    try {
+      head = await httpExchange("GET", url, { headers: withToken(), agent },
+        Date.now() + PUBLISH_TIMEOUT_MS, 0);
+    } catch (error) {
+      return refusePublish(["Publication impossible : " + error.message], check, warnings);
+    }
+    if (head.status !== 200) {
+      return refusePublish([httpFailure(head.status, "GET")], check, warnings);
+    }
+
+    const etag = head.headers && head.headers.etag ? String(head.headers.etag) : "";
+    if (!etag) {
+      warnings.push("Le serveur n'a pas renvoyé d'ETag : le dépôt s'est fait sans contrôle " +
+        "de concurrence (If-Match).");
+    }
+
+    // Envoi : le corps est exactement la serialisation de writeCatalogFile,
+    // pour que le document depose soit celui qu'un partage aurait recu.
+    const putHeaders = { "Content-Type": "application/json" };
+    if (etag) putHeaders["If-Match"] = etag;
+    const body = Buffer.from(JSON.stringify(published, null, 2) + os.EOL, "utf-8");
+
+    let response;
+    try {
+      response = await httpExchange("PUT", url, { headers: withToken(putHeaders), body, agent },
+        Date.now() + PUBLISH_TIMEOUT_MS, 0);
+    } catch (error) {
+      return refusePublish(["Publication impossible : " + error.message], check, warnings);
+    }
+
+    // Le service repond 200 ; on tolere les autres formes de succes.
+    if ([200, 201, 204].indexOf(response.status) < 0) {
+      return refusePublish([httpFailure(response.status, "PUT")], check, warnings);
+    }
+
+    const ack = parseJsonBody(response.body) || {};
+    const verification = await verifyServedVersion(readAddress(prefs), published.version);
+    if (!verification.ok) warnings.push(verification.message);
+
+    return {
+      ok: true,
+      status: response.status,
+      version: published.version,
+      previousVersion,
+      path: displayUrl(url),
+      etag: ack.etag ? String(ack.etag) : (etag || ""),
+      modifieLe: ack.modifieLe ? String(ack.modifieLe) : "",
+      catalog: published,
+      warnings,
+      verification
+    };
+  } finally {
+    agent.destroy();
+  }
 }
 
 /* ─── Validation avant enregistrement ou publication ─────────────────────── */
@@ -322,10 +894,67 @@ function registerIpc() {
       catalog,
       filePath,
       sharePath: prefs.sharePath || "",
+      readUrl: prefs.readUrl || "",
+      certFingerprint: prefs.certFingerprint || "",
+      // Le jeton lui-meme ne traverse jamais le pont : l'interface n'a besoin
+      // que de savoir s'il y en a un, et sous quelle forme il est garde.
+      hasToken: !!storedToken(),
+      secureStorage: secureStorageAvailable(),
+      tokenPersisted: !!prefs.publishTokenCipher && secureStorageAvailable(),
       defaultCatalog: bundledCatalog(),
       appVersion: app.getVersion(),
       dark: nativeTheme.shouldUseDarkColors,
       error
+    };
+  });
+
+  /**
+   * Preferences de l'onglet Application : destination, adresse de lecture,
+   * empreinte de certificat et jeton.
+   *
+   * Le jeton n'est jamais ecrit en clair : il passe par le coffre du systeme
+   * (DPAPI sous Windows). Si ce coffre n'existe pas, il reste en memoire pour la
+   * session — et l'interface le dit, plutot que de l'ecrire en clair. Il n'est
+   * jamais renvoye non plus : rien ne doit pouvoir le relire par erreur.
+   */
+  ipcMain.handle("admin:set-prefs", (_event, patch) => {
+    const input = patch && typeof patch === "object" ? patch : {};
+    const next = {};
+    const remove = [];
+
+    if (typeof input.sharePath === "string") next.sharePath = asText(input.sharePath, 2048);
+    if (typeof input.readUrl === "string") next.readUrl = asText(input.readUrl, 2048);
+    // L'empreinte n'est pas un secret : on la garde normalisee, pour que la
+    // comparaison au certificat presente soit directe.
+    if (typeof input.certFingerprint === "string") {
+      next.certFingerprint = normalizeFingerprint(input.certFingerprint).slice(0, MAX_FINGERPRINT_CHARS);
+    }
+
+    if (typeof input.publishToken === "string" && input.publishToken) {
+      const token = input.publishToken.slice(0, MAX_TOKEN_CHARS);
+      if (secureStorageAvailable()) {
+        try {
+          next.publishTokenCipher = safeStorage.encryptString(token).toString("base64");
+          sessionToken = null;
+        } catch {
+          // Le coffre a refuse : le jeton reste en memoire, jamais sur le disque.
+          sessionToken = token;
+        }
+      } else {
+        sessionToken = token;
+      }
+    }
+    if (input.clearToken === true) {
+      sessionToken = null;
+      remove.push("publishTokenCipher");
+    }
+
+    const stored = writePrefs(next, remove);
+    return {
+      ok: true,
+      hasToken: !!storedToken(),
+      secureStorage: secureStorageAvailable(),
+      tokenPersisted: !!stored.publishTokenCipher && secureStorageAvailable()
     };
   });
 
@@ -349,11 +978,60 @@ function registerIpc() {
     }
   });
 
-  /** Lit le catalogue actuellement publié sur le partage (pour le corriger). */
-  ipcMain.handle("admin:load-share", () => {
+  /**
+   * Lit le catalogue actuellement publié : dossier, ou adresse http(s).
+   *
+   * Par https, la lecture se fait avec le certificat épinglé et le jeton, comme
+   * le dépôt. Par http, elle se fait SANS jeton — c'est la lecture des postes,
+   * et un jeton y circulerait en clair.
+   */
+  ipcMain.handle("admin:load-share", async () => {
     const prefs = readPrefs();
-    const share = prefs.sharePath;
-    if (!share) return { ok: false, error: "Aucun partage configuré." };
+    const share = String(prefs.sharePath || "").trim();
+    if (!share) return { ok: false, error: "Aucune destination configurée." };
+
+    if (isHttpDestination(share)) {
+      const headers = {};
+      let agent = null;
+
+      if (isHttpsDestination(share)) {
+        const fingerprint = normalizeFingerprint(prefs.certFingerprint);
+        if (!fingerprintIsValid(fingerprint)) {
+          return {
+            ok: false,
+            error: "Empreinte de certificat absente ou illisible : renseignez-la dans " +
+              "l'onglet Application avant de lire par https."
+          };
+        }
+        const token = storedToken();
+        if (!token) {
+          return { ok: false, error: "Aucun jeton de publication n'est enregistré." };
+        }
+        headers.Authorization = "Bearer " + token;
+        agent = pinnedAgent(fingerprint);
+      }
+
+      try {
+        const response = await httpExchange("GET", share, { headers, agent },
+          Date.now() + PUBLISH_TIMEOUT_MS, 0);
+        if (response.status !== 200) {
+          return { ok: false, error: httpFailure(response.status, "GET") };
+        }
+        const catalog = parseJsonBody(response.body);
+        if (!catalog || typeof catalog !== "object" || Array.isArray(catalog)) {
+          return {
+            ok: false,
+            error: "Catalogue illisible : le serveur n'a pas renvoyé un objet JSON."
+          };
+        }
+        return { ok: true, catalog, filePath: displayUrl(share) };
+      } catch (error) {
+        return { ok: false, error: "Lecture impossible : " + error.message };
+      } finally {
+        if (agent) agent.destroy();
+      }
+    }
+
     const file = path.join(share, "apps.json");
     try {
       return { ok: true, catalog: readCatalogFile(file), filePath: file };
@@ -414,6 +1092,16 @@ function registerIpc() {
   });
 
   ipcMain.handle("admin:choose-share", async () => {
+    // Garde-fou : une destination en URL ne doit pas etre remplacee par un
+    // dossier sans que l'administrateur l'ait demande. L'interface desactive deja
+    // ce bouton dans ce cas ; ce refus couvre un appel direct.
+    if (isHttpDestination(readPrefs().sharePath)) {
+      return {
+        ok: false,
+        error: "La destination est une adresse http : effacez-la pour choisir un dossier."
+      };
+    }
+
     const result = await dialog.showOpenDialog(mainWindow, {
       title: "Choisir le dossier de publication (partage réseau)",
       defaultPath: readPrefs().sharePath || undefined,
@@ -424,17 +1112,34 @@ function registerIpc() {
     return { ok: true, sharePath: result.filePaths[0] };
   });
 
-  /** Publie : validation, version incrémentée, écriture atomique sur le partage. */
-  ipcMain.handle("admin:publish", (_event, catalog) => {
+  /**
+   * Publie : validation, version incrémentée, puis dépôt — dossier partagé
+   * (écriture atomique) ou service HTTPS (dépôt par requête), selon la forme de
+   * la destination.
+   */
+  ipcMain.handle("admin:publish", async (_event, catalog) => {
     const check = validateCatalog(catalog);
     if (!check.ok) {
       return { ok: false, problems: check.problems, badIds: check.badIds, warnings: check.warnings };
     }
 
-    // Publier un catalogue trop lourd ne se verrait nulle part : les postes
-    // l'écarteraient en silence et l'administrateur croirait avoir diffusé.
     const bytes = catalogBytes(catalog);
-    if (bytes > MAX_PUBLISH_BYTES) {
+    const prefs = readPrefs();
+    const share = String(prefs.sharePath || "").trim();
+    if (!share) {
+      return {
+        ok: false,
+        problems: ["Aucune destination de publication configurée."],
+        badIds: check.badIds,
+        warnings: check.warnings
+      };
+    }
+
+    // Destination URL : les plafonds du service de depot s'appliquent, et ils
+    // sont plus serres que ceux du fichier — publishOverHttps les controle avant
+    // toute requete. Un catalogue trop lourd ecarte en silence par les postes ne
+    // se verrait nulle part : on refuse ici, en nommant la limite.
+    if (!isHttpDestination(share) && bytes > MAX_PUBLISH_BYTES) {
       return {
         ok: false,
         problems: [tooHeavyMessage(bytes)],
@@ -443,22 +1148,18 @@ function registerIpc() {
       };
     }
 
-    const share = readPrefs().sharePath;
-    if (!share) {
-      return {
-        ok: false,
-        problems: ["Aucun partage réseau configuré."],
-        badIds: check.badIds,
-        warnings: check.warnings
-      };
-    }
-
-    const target = path.join(share, "apps.json");
     const published = Object.assign({}, catalog, {
       version: bumpVersion(catalog.version),
       lastUpdated: new Date().toISOString().slice(0, 10)
     });
 
+    // Destination en URL : depot par requete. Tout le reste : ecriture fichier,
+    // strictement inchangee — les installations sur partage SMB ne bougent pas.
+    if (isHttpDestination(share)) {
+      return publishOverHttps(share, published, catalog.version, prefs, check, bytes);
+    }
+
+    const target = path.join(share, "apps.json");
     try {
       writeCatalogFile(target, published);
     } catch (error) {
@@ -470,13 +1171,18 @@ function registerIpc() {
       };
     }
 
+    const warnings = check.warnings.slice();
+    const verification = verifyServedFile(target, published.version);
+    if (!verification.ok) warnings.push(verification.message);
+
     return {
       ok: true,
       version: published.version,
       previousVersion: catalog.version,
       path: target,
       catalog: published,
-      warnings: check.warnings
+      warnings,
+      verification
     };
   });
 
@@ -543,7 +1249,25 @@ function registerIpc() {
     return true;
   });
 
-  ipcMain.handle("admin:validate", (_event, catalog) => validateCatalog(catalog));
+  ipcMain.handle("admin:validate", (_event, catalog) => {
+    const check = validateCatalog(catalog);
+
+    // Destination en URL : les plafonds du service de depot sont plus serres que
+    // ceux du fichier. L'administrateur doit les voir AVANT de publier, dans la
+    // barre d'etat, plutot que de decouvrir un refus au moment du depot.
+    const prefs = readPrefs();
+    if (isHttpDestination(prefs.sharePath)) {
+      const bytes = catalogBytes(catalog);
+      if (bytes > MAX_API_BYTES) {
+        check.problems.push(apiTooHeavyMessage(bytes));
+        check.ok = false;
+      } else if (bytes > WARN_API_BYTES) {
+        check.warnings.push(apiNearLimitMessage(bytes));
+      }
+    }
+
+    return check;
+  });
 }
 
 /* ─── Cycle de vie ───────────────────────────────────────────────────────── */

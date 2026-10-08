@@ -17,6 +17,14 @@
     catalog: null,
     filePath: null,
     sharePath: "",
+    readUrl: "",
+    certFingerprint: "",
+    // Le jeton n'est ici que le temps de la frappe : une fois confié à la couche
+    // native (qui le chiffre), l'interface l'oublie et ne le relit jamais.
+    publishToken: "",
+    hasToken: false,
+    secureStorage: true,
+    tokenPersisted: false,
     dark: false,
     tab: "apps",
     appId: null,
@@ -1105,10 +1113,243 @@
 
   /* ═══ Application ═══════════════════════════════════════════════════════ */
 
+  /**
+   * Une destination en URL se dépose par requête ; tout le reste est un dossier.
+   * Seul https transporte le jeton : en http il circulerait en clair, donc la
+   * publication y est refusée. C'est la couche native qui décide en dernier
+   * ressort, mais l'interface doit annoncer le même choix pour ne pas mentir.
+   */
+  function isHttpShare(value) {
+    return /^https?:\/\//i.test(String(value || "").trim());
+  }
+
+  function isHttpsShare(value) {
+    return /^https:\/\//i.test(String(value || "").trim());
+  }
+
+  /** Une empreinte SHA-256 utilisable : 64 caractères hexadécimaux. */
+  function fingerprintOk(value) {
+    return /^[0-9a-f]{64}$/i.test(String(value || "").replace(/[^0-9a-fA-F]/g, ""));
+  }
+
+  /* ── Préférences saisies dans l'onglet Application ─────────────────────── */
+
+  // Destination, adresse de lecture, empreinte et jeton sont des préférences,
+  // pas des champs du catalogue : ils sont écrits dans le profil par la couche
+  // native. L'écriture est différée pendant la frappe — un enregistrement de
+  // fichier à chaque touche serait inutilement lourd — et vidée avant toute
+  // action qui en dépend. Les écritures sont enchaînées : la dernière saisie
+  // doit être celle qui reste.
+  var prefsTimer = null;
+  var prefsPending = null;
+  var prefsWrite = null;
+
+  function schedulePrefs() {
+    prefsPending = {
+      sharePath: state.sharePath,
+      readUrl: state.readUrl,
+      certFingerprint: state.certFingerprint
+    };
+    if (prefsTimer) clearTimeout(prefsTimer);
+    prefsTimer = setTimeout(flushPrefs, 400);
+  }
+
+  /**
+   * Applique la réponse de la couche native. Un jeton envoyé est oublié aussitôt
+   * par l'interface : il vit dans le coffre, pas dans le formulaire.
+   */
+  function applyPrefsResult(result, sentToken) {
+    if (!result) return;
+    state.hasToken = !!result.hasToken;
+    state.secureStorage = !!result.secureStorage;
+    state.tokenPersisted = !!result.tokenPersisted;
+    if (sentToken) {
+      state.publishToken = "";
+      els.eToken.value = "";
+    }
+    renderTokenNote();
+  }
+
+  function sendPrefs(patch, sentToken) {
+    return bridge.setPrefs(patch).then(function (result) {
+      applyPrefsResult(result, sentToken);
+      return result;
+    }, function () {
+      // Les préférences ne doivent jamais bloquer l'outil : on n'insiste pas.
+      return null;
+    });
+  }
+
+  /**
+   * Écrit ce qui est en attente, en y joignant le jeton présent dans le champ :
+   * c'est le seul moment où le jeton quitte le formulaire. Le jeton n'est jamais
+   * transmis à vide — un champ vide ne doit pas effacer celui du coffre.
+   */
+  function flushPrefs() {
+    if (prefsTimer) {
+      clearTimeout(prefsTimer);
+      prefsTimer = null;
+    }
+    var patch = prefsPending;
+    prefsPending = null;
+    if (state.publishToken) {
+      patch = Object.assign({}, patch || {}, { publishToken: state.publishToken });
+    }
+    if (!patch) return prefsWrite || Promise.resolve();
+    var sentToken = !!patch.publishToken;
+    var previous = prefsWrite || Promise.resolve();
+    prefsWrite = previous.then(function () {
+      return sendPrefs(patch, sentToken);
+    });
+    return prefsWrite;
+  }
+
+  /* ── Rapport de publication ───────────────────────────────────────────── */
+
+  /**
+   * Rend le compte rendu de publication dans l'onglet Application, sur le
+   * composant .publish-report déjà stylé. Un échec doit s'y lire comme une
+   * phrase : c'est la seule trace que l'administrateur garde de sa tentative.
+   */
+  function showReport(title, lines, tone) {
+    var html = '<span class="title">' + esc(title) + "</span>";
+    var kept = (lines || []).filter(function (line) {
+      return String(line || "").trim();
+    });
+    if (kept.length) {
+      html += "<ul>";
+      kept.forEach(function (line) {
+        html += "<li>" + esc(line) + "</li>";
+      });
+      html += "</ul>";
+    }
+    els.publishReport.innerHTML = html;
+    els.publishReport.setAttribute("data-tone", tone || "ok");
+    els.publishReport.hidden = false;
+  }
+
+  /**
+   * La destination change : l'ancien compte rendu ne décrit plus rien. Le
+   * laisser à l'écran ferait croire à une publication sur la nouvelle adresse.
+   */
+  function clearReport() {
+    els.publishReport.hidden = true;
+    els.publishReport.innerHTML = "";
+  }
+
+  /** Lignes du compte rendu d'une publication réussie. */
+  function publishLines(result) {
+    var lines = [];
+    if (result.status) lines.push("Statut HTTP : " + result.status);
+    lines.push("Version publiée : " + result.previousVersion + " → " + result.version);
+    lines.push("Destination : " + result.path);
+    if (result.etag) lines.push("ETag publié : " + result.etag);
+    if (result.modifieLe) lines.push("Modifié le : " + result.modifieLe);
+    if (result.verification) lines.push("Vérification : " + result.verification.message);
+    (result.warnings || []).forEach(function (warning) {
+      lines.push("Avertissement : " + warning);
+    });
+    return lines;
+  }
+
   function renderApplication() {
     els.eVersion.value = state.catalog.version || "0.0.0";
     els.eShare.value = state.sharePath || "";
+    els.eRead.value = state.readUrl || "";
+    els.eFingerprint.value = state.certFingerprint || "";
+    els.eToken.value = state.publishToken || "";
+    renderDestination();
+    renderTokenNote();
+    renderFingerprintNote();
+    renderReadNote();
     renderLogo();
+  }
+
+  /**
+   * Le jeton ne sert qu'au dépôt https, l'empreinte qu'à ce même dépôt, et
+   * l'adresse de lecture qu'aux destinations en URL ; le sélecteur de dossier,
+   * lui, ne doit pas écraser une adresse par mégarde. Aucun champ n'est
+   * reconstruit ici : le curseur reste où l'administrateur l'a laissé.
+   */
+  function renderDestination() {
+    var url = isHttpShare(state.sharePath);
+    var secure = isHttpsShare(state.sharePath);
+
+    els.rowToken.hidden = !secure;
+    els.eToken.disabled = !secure;
+    els.rowFingerprint.hidden = !secure;
+    els.eFingerprint.disabled = !secure;
+    els.rowRead.hidden = !url;
+    els.eRead.disabled = !url;
+
+    els.shareChoose.disabled = url;
+    els.shareChoose.setAttribute("aria-disabled", url ? "true" : "false");
+    els.shareChoose.title = url
+      ? "Destination en URL : le catalogue est déposé par requête, il n'y a pas de dossier à choisir."
+      : "";
+
+    els.shareNote.textContent = secure
+      ? "Dépôt par requête HTTPS sur cette adresse exacte : jeton en en-tête, certificat vérifié par empreinte, remplacement complet du document."
+      : url
+        ? "Adresse en http : la publication y est refusée, le jeton y circulerait en clair. Cette adresse ne sert qu'à relire le catalogue publié."
+        : "Dossier de publication : le catalogue y est écrit dans apps.json, par fichier temporaire puis remplacement.";
+  }
+
+  /**
+   * Ce que l'outil sait du jeton — et surtout ce qu'il ne fait pas : jamais de
+   * jeton en clair sur le disque, et un repli annoncé quand le système ne
+   * propose pas de coffre.
+   */
+  function renderTokenNote() {
+    var text;
+    if (state.hasToken) {
+      text = state.tokenPersisted
+        ? "Un jeton est enregistré, chiffré par le système."
+        : (state.secureStorage
+          ? "Un jeton est enregistré."
+          : "Jeton gardé en mémoire pour cette session seulement : le coffre du système est indisponible, et l'outil refuse de l'écrire en clair.");
+      text += " Laissez le champ vide pour le conserver ; saisissez un nouveau jeton pour le remplacer.";
+    } else {
+      text = state.secureStorage
+        ? "Aucun jeton enregistré. Il sera chiffré par le système avant d'être écrit, et jamais affiché ensuite."
+        : "Aucun jeton enregistré. Le coffre du système est indisponible : le jeton ne sera gardé qu'en mémoire, pour cette session, et perdu à la fermeture.";
+    }
+    els.tokenNote.textContent = text;
+    els.tokenClear.hidden = !state.hasToken;
+  }
+
+  function renderFingerprintNote() {
+    var raw = String(state.certFingerprint || "").trim();
+    var ok = fingerprintOk(raw);
+    els.eFingerprint.setAttribute("aria-invalid", raw && !ok ? "true" : "false");
+    els.fingerprintNote.textContent = !raw
+      ? "Sans empreinte, l'outil refuse de publier : c'est ce contrôle qui empêche un autre serveur de se faire passer pour le vôtre."
+      : ok
+        ? "Empreinte acceptée : elle est comparée à celle du certificat présenté à chaque dépôt, avant tout envoi."
+        : "Empreinte illisible : 64 caractères hexadécimaux sont attendus (« : » et casse libres).";
+  }
+
+  function renderReadNote() {
+    var raw = String(state.readUrl || "").trim();
+    if (!isHttpShare(raw)) {
+      var derived = derivedReadAddress(state.sharePath);
+      els.readNote.textContent = derived
+        ? "Laissée vide, la vérification se fera sur " + derived + " (même hôte et même chemin, en http sur le port 3000)."
+        : "Adresse utilisée pour vérifier, après publication, que les postes reçoivent bien la nouvelle version.";
+      return;
+    }
+    els.readNote.textContent = "Vérification après publication : l'outil relit cette adresse, sans jeton, comme le fait un poste.";
+  }
+
+  /**
+   * Même déduction que la couche native, pour l'annoncer avant l'envoi : même
+   * hôte — sans son port, remplacé par celui de la lecture — et même chemin.
+   */
+  function derivedReadAddress(writeUrl) {
+    var match = /^https:\/\/([^/?#]+)([^?#]*)/i.exec(String(writeUrl || "").trim());
+    if (!match) return "";
+    var host = match[1].replace(/:\d+$/, "");
+    return "http://" + host + ":3000" + (match[2] || "/");
   }
 
   function renderDepartment() {
@@ -1199,13 +1440,10 @@
   }
 
   function reportProblems(result, title) {
-    var html = '<div class="publish-report"><span class="title">' + esc(title) + "</span><ul>";
-    (result.problems || []).forEach(function (p) {
-      html += "<li>" + esc(p) + "</li>";
-    });
-    html += "</ul></div>";
-    toast(title, (result.problems || []).join(" "), "warn");
-    return html;
+    var problems = (result.problems || []).filter(Boolean);
+    if (!problems.length) problems = ["Publication refusée."];
+    showReport(title, problems, "warn");
+    toast(title, problems.join(" "), "warn");
   }
 
   function doSave() {
@@ -1240,22 +1478,34 @@
   function doPublish() {
     if (!state.catalog) return;
     if (!state.sharePath) {
-      toast("Aucun partage configuré", "Onglet Application → choisir le dossier de publication.", "warn");
+      toast(
+        "Aucune destination configurée",
+        "Onglet Application → dossier partagé, ou adresse https du document.",
+        "warn"
+      );
       setTab("application");
       return;
     }
     sanitizeCatalog();
-    bridge.publish(state.catalog).then(function (result) {
+    // La destination, l'empreinte et le jeton viennent d'être saisis : la couche
+    // native lit le fichier de préférences, il doit donc être écrit avant.
+    flushPrefs().then(function () {
+      return bridge.publish(state.catalog);
+    }).then(function (result) {
       if (!result.ok) {
-        toast("Publication refusée", (result.problems || []).join(" "), "warn");
+        reportProblems(result, "Publication refusée");
         return;
       }
       state.catalog = result.catalog;
       renderApplication();
       renderStatus();
+      var warnings = result.warnings || [];
+      showReport("Catalogue publié — v" + result.version, publishLines(result),
+        warnings.length ? "warn" : "ok");
       toast(
         "Catalogue publié — v" + result.version,
-        "Version " + result.previousVersion + " → " + result.version + " · " + result.path
+        "Version " + result.previousVersion + " → " + result.version + " · " + result.path,
+        warnings.length ? "warn" : null
       );
     });
   }
@@ -1378,6 +1628,8 @@
         case "logo-clear": state.catalog.logo = null; renderLogo(); scheduleValidate(); break;
         case "share-choose": chooseShare(); break;
         case "share-load": loadShare(); break;
+        case "token-reveal": toggleToken(); break;
+        case "token-clear": clearToken(); break;
         case "app-image-pick": pickAppImage(); break;
         case "app-image-clear": clearAppImage(); break;
         case "shot-add": addScreenshot(); break;
@@ -1477,6 +1729,46 @@
       scheduleValidate();
     });
 
+    // Destination de publication : c'est une préférence de l'outil, pas un champ
+    // du catalogue. On l'écrit dans l'état dès la frappe — sans reconstruire le
+    // champ, donc sans perdre le curseur — et l'enregistrement est différé.
+    // Changer de destination invalide le compte rendu précédent.
+    els.eShare.addEventListener("input", function () {
+      state.sharePath = els.eShare.value.trim();
+      renderDestination();
+      renderReadNote();
+      clearReport();
+      schedulePrefs();
+    });
+
+    // Jeton : sa valeur ne quitte le champ que pour le coffre du système, et
+    // seulement quand la saisie est terminée — jamais pendant la frappe, sinon
+    // une pause viderait le champ au milieu du jeton. Il n'est jamais relu
+    // depuis les préférences, et jamais journalisé.
+    els.eToken.addEventListener("input", function () {
+      state.publishToken = els.eToken.value;
+    });
+
+    els.eToken.addEventListener("change", function () {
+      state.publishToken = els.eToken.value;
+      if (state.publishToken) flushPrefs();
+    });
+
+    // L'empreinte n'est pas un secret : elle est enregistrée telle que saisie
+    // (normalisée côté natif) et contrôlée sur place pour signaler une faute de
+    // recopie avant la publication.
+    els.eFingerprint.addEventListener("input", function () {
+      state.certFingerprint = els.eFingerprint.value.trim();
+      renderFingerprintNote();
+      schedulePrefs();
+    });
+
+    els.eRead.addEventListener("input", function () {
+      state.readUrl = els.eRead.value.trim();
+      renderReadNote();
+      schedulePrefs();
+    });
+
     // En-tête du carrousel : sans information, l'objet n'est pas conservé par
     // la validation, donc on l'oublie dès qu'il redevient vide.
     els.dTitle.addEventListener("input", function () {
@@ -1558,17 +1850,57 @@
   }
 
   function chooseShare() {
+    // Le sélecteur ne choisit que des dossiers : sur une destination en URL, il
+    // remplacerait l'adresse par un chemin local sans que personne l'ait voulu.
+    if (isHttpShare(state.sharePath)) return;
     bridge.chooseShare().then(function (result) {
       if (result.canceled) return;
+      if (!result.ok) {
+        toast("Dossier non choisi", result.error, "warn");
+        return;
+      }
+      // Le dossier est déjà mémorisé par la couche native : rien à réécrire.
       state.sharePath = result.sharePath;
       els.eShare.value = state.sharePath;
+      renderDestination();
+      renderReadNote();
+      clearReport();
       toast("Dossier de publication défini", state.sharePath);
     });
   }
 
+  /**
+   * Afficher le jeton en clair, à la demande. Le champ reste de type mot de
+   * passe par défaut : un jeton affiché devant un tiers est un jeton perdu.
+   */
+  function toggleToken() {
+    var shown = els.eToken.type === "text";
+    els.eToken.type = shown ? "password" : "text";
+    els.tokenReveal.textContent = shown ? "Afficher" : "Masquer";
+    els.tokenReveal.setAttribute("aria-pressed", shown ? "false" : "true");
+    els.tokenReveal.setAttribute("aria-label",
+      shown ? "Afficher le jeton de publication" : "Masquer le jeton de publication");
+  }
+
+  /** Oublier le jeton enregistré : le coffre le supprime, l'interface aussi. */
+  function clearToken() {
+    state.publishToken = "";
+    els.eToken.value = "";
+    bridge.setPrefs({ clearToken: true }).then(function (result) {
+      applyPrefsResult(result, false);
+      renderApplication();
+      toast("Jeton oublié", "L'outil ne conserve plus aucun jeton de publication.");
+    });
+  }
+
   function loadShare() {
-    bridge.loadShare().then(function (result) {
+    // Même raison que pour la publication : la destination, l'empreinte et le
+    // jeton saisis doivent être enregistrés avant que la couche native les lise.
+    flushPrefs().then(function () {
+      return bridge.loadShare();
+    }).then(function (result) {
       if (!result.ok) {
+        showReport("Lecture impossible", [result.error, "Destination : " + state.sharePath], "warn");
         toast("Lecture impossible", result.error, "warn");
         return;
       }
@@ -1578,6 +1910,7 @@
       // dessus diffuserait des changements sans changer la version, donc sans
       // que les postes ne se mettent à jour.
       absorb({ catalog: result.catalog, filePath: state.filePath });
+      clearReport();
       toast("Catalogue publié chargé", "Modifiez, puis « Publier » pour le diffuser.");
     });
   }
@@ -1644,6 +1977,20 @@
       cPreview: $("c-preview"),
       eVersion: $("e-version"),
       eShare: $("e-share"),
+      eToken: $("e-token"),
+      eRead: $("e-read"),
+      eFingerprint: $("e-fingerprint"),
+      rowToken: $("row-token"),
+      rowFingerprint: $("row-fingerprint"),
+      rowRead: $("row-read"),
+      tokenReveal: $("token-reveal"),
+      tokenClear: $("token-clear"),
+      tokenNote: $("token-note"),
+      fingerprintNote: $("fingerprint-note"),
+      readNote: $("read-note"),
+      shareChoose: $("share-choose"),
+      shareNote: $("share-note"),
+      publishReport: $("publish-report"),
       logoPreview: $("logo-preview"),
       logoNote: $("logo-note"),
       brandMark: $("brand-mark"),
@@ -1655,6 +2002,11 @@
 
     bridge.getState().then(function (payload) {
       state.sharePath = payload.sharePath || "";
+      state.readUrl = payload.readUrl || "";
+      state.certFingerprint = payload.certFingerprint || "";
+      state.hasToken = !!payload.hasToken;
+      state.secureStorage = payload.secureStorage !== false;
+      state.tokenPersisted = !!payload.tokenPersisted;
       state.dark = !!payload.dark;
       document.documentElement.setAttribute("data-theme", state.dark ? "dark" : "light");
 
