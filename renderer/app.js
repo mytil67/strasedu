@@ -187,6 +187,9 @@
        aura été manqué.
     */
     pendingCatalog: null,
+    // L'invitation a-t-elle ete masquee pour cette session ? Le catalogue recu
+    // reste applicable depuis les reglages : masquer ne perd rien.
+    updateDismissed: false,
     ready: false
   };
 
@@ -215,7 +218,11 @@
     toastHost: document.getElementById("toast-host"),
     live: document.getElementById("live"),
     statusSync: document.getElementById("status-sync"),
-    statusVersion: document.getElementById("status-version")
+    statusVersion: document.getElementById("status-version"),
+    updateBanner: document.getElementById("update-banner"),
+    updateBadge: document.getElementById("update-badge"),
+    updateTitle: document.getElementById("update-title"),
+    updateDismiss: document.getElementById("update-dismiss")
   };
 
   function announce(message) {
@@ -1898,10 +1905,31 @@
     bridge.reloadCatalog().then(function (snapshot) {
       absorb(snapshot);
       state.pendingCatalog = null;
+      state.updateDismissed = false;
       render();
       renderStatus();
       toast("Catalogue rechargé", state.apps.length + " outils disponibles.");
     });
+  }
+
+  /**
+   * Bannière d'annonce d'une nouvelle version. Elle occupe toute la largeur,
+   * sous la barre du haut : une pastille discrète dans un coin se manquait, et
+   * un poste qui la manque reste des jours sur l'ancien catalogue. Elle ne
+   * disparaît que sur un rechargement ou un masquage explicite.
+   */
+  function renderUpdateBanner() {
+    if (!els.updateBanner) return;
+    var pending = state.pendingCatalog && state.pendingCatalog.version;
+    var visible = !!(pending && !state.updateDismissed);
+    els.updateBanner.hidden = !visible;
+    if (!visible) return;
+
+    if (els.updateBadge && !els.updateBadge.firstChild) {
+      els.updateBadge.innerHTML = svg("refresh", 18);
+    }
+    els.updateTitle.textContent =
+      "Nouvelle version " + state.pendingCatalog.version + " du catalogue disponible";
   }
 
   function renderStatus() {
@@ -1934,6 +1962,7 @@
     }
 
     els.statusVersion.textContent = "v" + (state.capabilities.version || "");
+    renderUpdateBanner();
   }
 
   /* ═══ 11. Absorption des données et démarrage ═══════════════════════════ */
@@ -2114,6 +2143,16 @@
     });
 
     els.settings.addEventListener("click", openSettings);
+
+    if (els.updateDismiss) {
+      els.updateDismiss.addEventListener("click", function () {
+        // Masquer ne perd rien : le catalogue reçu s'appliquera au prochain
+        // démarrage, et les réglages permettent de le recharger à tout moment.
+        state.updateDismissed = true;
+        renderUpdateBanner();
+        announce("Invitation masquée. Le catalogue s'appliquera au prochain démarrage.");
+      });
+    }
     els.help.addEventListener("click", openHelp);
     els.dialogClose.addEventListener("click", closeDialog);
 

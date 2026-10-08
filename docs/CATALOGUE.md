@@ -399,15 +399,23 @@ Pour forcer immédiatement sur un poste : **Réglages → Catalogue → Vérifie
 
 **Un catalogue reçu n'est jamais affiché de force.** Le remplacer sous les yeux
 d'un enseignant en pleine recherche serait désagréable : le poste installe la
-nouvelle version, puis propose de l'afficher. L'invitation apparaît en bas à
-gauche — *« Nouvelle version 2.3.0 — recharger »* — et **reste** tant que le
-catalogue n'a pas été affiché. Elle se clique, se déclenche à la touche `Entrée`,
-et se retrouve aussi dans **Réglages → Catalogue → Recharger maintenant**.
+nouvelle version, puis propose de l'afficher. Une **bannière en haut de la
+fenêtre** annonce la nouvelle version et propose « Recharger maintenant » :
 
-> C'est délibéré : un message fugace de quelques secondes aurait laissé des
-> postes entiers sur l'ancien catalogue sans que personne ne s'en aperçoive,
-> puisque le fichier, lui, avait déjà changé. La version reçue est de toute
-> façon appliquée au prochain démarrage de l'application.
+> ⟳ **Nouvelle version 2.3.0 du catalogue disponible**
+> Sans action de votre part, elle s'appliquera au prochain démarrage.
+> \[ Recharger maintenant \] \[ × \]
+
+Elle reste affichée tant que le catalogue n'a pas été rechargé ou l'invitation
+masquée — elle ne s'efface pas toute seule. Le bouton `×` la masque pour la
+session sans rien perdre : le catalogue s'appliquera au prochain démarrage, et
+**Réglages → Catalogue → Recharger maintenant** permet de le reprendre à tout
+moment. La pastille de la barre d'état, en bas, la rappelle discrètement.
+
+> C'est délibéré : un message fugace de quelques secondes a laissé des postes
+> entiers sur l'ancien catalogue sans que personne ne s'en aperçoive, puisque le
+> fichier, lui, avait déjà changé. La version reçue est de toute façon appliquée
+> au prochain démarrage de l'application.
 
 Pour éprouver le cycle automatique sans attendre une demi-heure, posez
 temporairement `"checkIntervalMinutes": 2` dans `strasedu.config.json`, puis

@@ -88,6 +88,31 @@
       </div>
     </header>
 
+    <!--
+      Une nouvelle version du catalogue a ete recue. L'invitation doit etre
+      impossible a manquer : une pastille dans un coin ne suffisait pas, et un
+      poste qui la manque reste sur l'ancien catalogue. Elle reste affichee tant
+      que l'on n'a pas recharge ou masque l'invitation.
+    -->
+    <div class="update-banner" id="update-banner" role="status" aria-live="polite" hidden>
+      <span class="update-badge" id="update-badge" aria-hidden="true"></span>
+      <div class="update-text">
+        <div class="update-title" id="update-title"></div>
+        <div class="update-help">
+          Sans action de votre part, elle s'appliquera au prochain démarrage.
+        </div>
+      </div>
+      <button class="btn btn-sm btn-primary" type="button" data-action="reload-catalog">
+        Recharger maintenant
+      </button>
+      <button class="iconbtn" type="button" id="update-dismiss"
+              aria-label="Masquer cette invitation" title="Masquer cette invitation">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M6 6l12 12M18 6L6 18"></path>
+        </svg>
+      </button>
+    </div>
+
     <main class="content" id="content" tabindex="-1"></main>
 
     <footer class="statusbar">

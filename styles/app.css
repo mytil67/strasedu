@@ -438,7 +438,9 @@ svg {
 
 .main {
   display: grid;
-  grid-template-rows: var(--topbar-h) 1fr var(--statusbar-h);
+  /* Barre du haut, bannière d'annonce (hauteur nulle quand elle est masquée),
+     contenu, barre d'état. */
+  grid-template-rows: var(--topbar-h) auto 1fr var(--statusbar-h);
   min-width: 0;
   min-height: 0;
 }
@@ -632,6 +634,59 @@ svg {
 .content-inner {
   max-width: 1180px;
   margin: 0 auto;
+}
+
+/* Annonce d'une nouvelle version du catalogue. Elle occupe toute la largeur,
+   sous la barre du haut, et se remarque : une pastille discrète dans un coin se
+   manquait, et un poste qui la manque reste des jours sur l'ancien catalogue. */
+.update-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin: var(--sp-3) var(--sp-6) 0;
+  padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-3);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-lg);
+  background: var(--accent-soft);
+  box-shadow: var(--shadow-2);
+  /* Sans cela, l'attribut hidden est neutralisé par le display ci-dessus, et
+     la bannière occupe une rangée de la grille même quand il n'y a rien à
+     annoncer. */
+  align-self: start;
+}
+
+.update-banner[hidden] {
+  display: none;
+}
+
+.update-badge {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-full);
+  background: var(--accent);
+  color: #fff;
+}
+
+.update-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.update-title {
+  font-weight: 650;
+  color: var(--accent-ink);
+}
+
+.update-help {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+
+.update-banner .btn {
+  flex: 0 0 auto;
 }
 
 /* Barre d'état ------------------------------------------------------------ */
