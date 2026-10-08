@@ -107,31 +107,36 @@ Trois nouveautés donnent de la voix à l'établissement sur la page d'accueil.
 Tout se pilote depuis le catalogue : **aucun redéploiement n'est nécessaire**
 pour publier une information ou changer une mise en avant.
 
-### Un carrousel d'informations
+### Un bandeau d'information
 
 Le département informatique pousse ses informations — nouvelle salle,
-maintenance, nouveaux outils validés — sous forme de carrousel, en tête de
-l'accueil. Chaque information porte un titre, un texte, et si besoin une image
+maintenance, nouveaux outils validés — dans un **bandeau d'une ligne**, en tête
+de l'accueil. Chaque information porte un titre, un texte, et si besoin une image
 et un lien « En savoir plus », ouvert dans le navigateur du poste.
 
-Le carrousel avance seul toutes les sept secondes ; il s'arrête dès que la
-souris s'en approche ou qu'un élément reçoit le focus, et reste immobile si le
-poste demande de réduire les animations. Un bouton de pause l'arrête pour de
-bon — une rotation automatique doit pouvoir être interrompue, pas seulement
-suspendue — et flèches et pastilles permettent de circuler au clavier comme à la
-souris.
+Le bandeau avance seul toutes les sept secondes ; il s'arrête dès que la souris
+s'en approche ou qu'un élément reçoit le focus, et reste immobile si le poste
+demande de réduire les animations. Un bouton de pause l'arrête pour de bon — une
+rotation automatique doit pouvoir être interrompue, pas seulement suspendue — et
+flèches et pastilles permettent de circuler au clavier comme à la souris.
 
-Sa hauteur est **fixe** (232 px, 196 px en densité compacte) : quelle que soit
-l'image fournie, le carrousel ne peut pas envahir l'écran. La zone image garde
-un rapport 16/9 constant, à toutes les tailles de fenêtre.
+Sa hauteur est **fixe** (52 px, 44 px en densité compacte) : quelles que soient
+les images fournies, l'information ne peut pas envahir l'écran. Cliquer la ligne
+ouvre l'information complète — image, texte entier, lien — dans un panneau
+latéral, sans quitter l'accueil.
+
+> La règle qui gouverne l'accueil : l'essentiel — les outils — doit être visible
+> **sans défiler**, et les informations du service restent en tête, mais
+> compactes. `docs/INTERFACE.md` explique cette organisation et ce qu'il ne faut
+> pas y remettre.
 
 ### Les outils mis en avant
 
-Sous le carrousel, l'administrateur compose une ou plusieurs sélections
+Sous la grille d'outils, l'administrateur compose une ou plusieurs sélections
 (« Le moment », « Le mois ») : les outils choisis apparaissent en grand, avec
 leur visuel, leur description et un accès direct. C'est la vitrine de
-l'établissement, **distincte des favoris personnels** de chacun, qui restent
-affichés plus bas avec les outils récents.
+l'établissement, **distincte des favoris personnels** de chacun, qui sont
+rassemblés plus haut dans « Mes outils » avec les outils récents.
 
 ### Des outils qui se montrent
 
@@ -169,6 +174,7 @@ scripts/install-strasedu.ps1    déploiement et mise à jour par copie de dossie
 scripts/update-catalog.ps1     validation et publication du catalogue (admin)
 docs/DEPLOIEMENT.md            guide de déploiement Windows 11
 docs/CATALOGUE.md              guide administrateur du catalogue
+docs/INTERFACE.md              organisation de l'interface, et pourquoi
 ```
 
 ## Mettre à jour le catalogue (côté administrateur)

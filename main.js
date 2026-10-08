@@ -583,10 +583,26 @@ function capabilities() {
     /* accent système indisponible : on garde la teinte de la charte */
   }
 
+  let userName = "";
+  try {
+    const raw = String(os.userInfo().username || "").trim();
+    // « c.marchand » -> « C. Marchand » : la ligne de salutation s'adresse à
+    // une personne, pas à un identifiant de session.
+    userName = raw
+      .split(/[\s._-]+/)
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+  } catch {
+    /* compte systeme illisible (service, profil de domaine) : on salue sans nom */
+  }
+
   return {
     platform: process.platform,
     windows11: isWindows11(),
     osName: os.type() + " " + os.release(),
+    // Salutation de l'accueil : vide si le compte n'est pas lisible.
+    userName,
     dark: nativeTheme.shouldUseDarkColors,
     accent,
     version: app.getVersion(),

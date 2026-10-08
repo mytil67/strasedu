@@ -180,6 +180,14 @@
     // Diapositive courante du carrousel : conservée d'un rendu à l'autre, pour
     // qu'une mise en favori ne ramène pas l'utilisateur à la première.
     slideIndex: 0,
+    // Filtre de catégorie de « Tous les outils », sur l'accueil. Vide : tout.
+    homeFilter: "",
+    /*
+       Panneau latéral : null, { kind: "news", id } ou { kind: "app", id }.
+       Il ne masque jamais la page — c'est tout son intérêt : l'enseignant garde
+       le catalogue sous les yeux pendant qu'il lit une information.
+    */
+    drawer: null,
     /*
        Version recue et installée, mais pas encore affichée. Tant qu'elle est
        là, l'application propose de basculer — c'est ce qui empêche un poste de
@@ -210,6 +218,11 @@
     paletteInput: document.getElementById("palette-input"),
     paletteList: document.getElementById("palette-list"),
     paletteCount: document.getElementById("palette-count"),
+    drawer: document.getElementById("drawer"),
+    drawerTitle: document.getElementById("drawer-title"),
+    drawerBody: document.getElementById("drawer-body"),
+    drawerFoot: document.getElementById("drawer-foot"),
+    drawerClose: document.getElementById("drawer-close"),
     dialog: document.getElementById("dialog"),
     dialogTitle: document.getElementById("dialog-title"),
     dialogBody: document.getElementById("dialog-body"),
@@ -494,11 +507,15 @@
 
   /* ═══ 6. Navigation ═════════════════════════════════════════════════════ */
 
+  /*
+     Le menu latéral ne mène plus qu'aux deux listes complètes : « Favoris » et
+     « Récents » y faisaient doublon avec « Mes outils », et une entrée qu'on ne
+     clique jamais chasse les autres du regard. Les deux routes restent
+     fonctionnelles — la palette et le bouton « Gérer » y mènent.
+  */
   var RAIL_PRIMARY = [
     { route: "home", label: "Accueil", icon: "home" },
-    { route: "all", label: "Tous les outils", icon: "grid" },
-    { route: "favorites", label: "Favoris", icon: "star" },
-    { route: "recents", label: "Récents", icon: "clock" }
+    { route: "all", label: "Tous les outils", icon: "grid" }
   ];
 
   function routeKey(route) {
@@ -513,6 +530,9 @@
     }
     state.route = route;
     state.favOnly = false;
+    // Changer de vue remet le catalogue de l'accueil à « tout » : retrouver un
+    // filtre oublié au retour ferait croire à un catalogue incomplet.
+    state.homeFilter = "";
     if (!opts.keepQuery) {
       state.query = "";
       els.search.value = "";
@@ -526,6 +546,7 @@
     var previous = state.history.pop();
     if (previous) {
       state.route = previous;
+      state.homeFilter = "";
       render();
       els.content.scrollTop = 0;
     }
@@ -646,6 +667,9 @@
     applyCardColors();
     paintRail();
     initCarousel();
+    // Un rendu remplace le contenu : le panneau doit retrouver ce qu'il
+    // affichait, ou se refermer si l'outil a disparu du catalogue.
+    renderDrawer();
   }
 
   function applyCardColors() {
@@ -661,111 +685,79 @@
       blocks += '<div class="skeleton sk-tile"></div>';
     }
     els.content.innerHTML =
-      '<div class="content-inner"><div class="hero">' +
+      '<div class="content-inner"><div class="greeting">' +
       '<div class="skeleton sk-title"></div>' +
-      '<div class="skeleton sk-sub"></div>' +
       '</div><div class="cat-grid">' + blocks + "</div></div>";
   }
 
   /* ── Accueil ───────────────────────────────────────────────────────────── */
 
+  /**
+   * L'accueil dans l'ordre : qui je suis, ce que le service annonce, mes
+   * outils, puis le catalogue. Les mises en avant et les catégories ferment la
+   * page — c'est du contenu éditorial, pas une porte d'entrée, et les laisser
+   * en tête repoussait les outils hors du premier écran.
+   */
   function viewHome() {
-    var html = "";
-    var recents = recentApps(5);
+    var recents = recentApps(8);
     var favorites = favoriteApps();
-
-    // Pas d'accueil nominatif : l'outil est commun à tous les utilisateurs du
-    // poste, il n'y a donc ni nom ni établissement à afficher.
-    html +=
-      '<header class="hero">' +
-      '<h1 class="hero-title">Vos outils pédagogiques</h1>' +
-      '<p class="hero-sub">Choisissez une catégorie, ou appuyez sur ' +
-      '<span class="kbd">Ctrl</span> <span class="kbd">K</span> pour chercher parmi les ' +
-      state.apps.length +
-      " outils disponibles.</p>" +
-      '<div class="hero-cta">' +
-      '<button class="btn btn-primary" type="button" data-action="palette">' +
-      svg("search", 17) +
-      "Rechercher un outil</button>" +
-      '<button class="btn" type="button" data-action="route" data-route="all">' +
-      svg("grid", 17) +
-      "Voir tout le catalogue</button>" +
-      "</div></header>";
-
-    // Les informations du département informatique ouvrent l'accueil : c'est ce
-    // que l'établissement veut faire lire en premier.
-    if (state.news) html += newsCarousel(state.news);
-
-    // Puis les mises en avant composées par l'administration, avant les
-    // rubriques personnelles de l'utilisateur.
+    var html = greetingLine();
+    if (state.news && state.news.items.length) html += newsStrip(state.news);
+    html += myTools(favorites, recents);
+    html += catalogueSection();
     state.highlights.forEach(function (group) {
       html += spotlight(group);
     });
-
-    if (recents.length) {
-      html +=
-        '<section class="section"><div class="section-head">' +
-        '<h2 class="section-title">Reprendre</h2>' +
-        '<span class="section-count">vos derniers outils ouverts</span>' +
-        '<span class="section-action"><button class="btn btn-subtle btn-sm" type="button" ' +
-        'data-action="route" data-route="recents">Tout voir</button></span>' +
-        "</div><div class=\"chip-row\">" +
-        recents.map(chip).join("") +
-        "</div></section>";
-    }
-
-    if (favorites.length) {
-      html +=
-        '<section class="section"><div class="section-head">' +
-        '<h2 class="section-title">Favoris</h2>' +
-        '<span class="section-count">' + favorites.length +
-        (favorites.length > 1 ? " outils" : " outil") + "</span>" +
-        '<span class="section-action"><button class="btn btn-subtle btn-sm" type="button" ' +
-        'data-action="route" data-route="favorites">Gérer</button></span>' +
-        "</div><div class=\"chip-row\">" +
-        favorites.slice(0, 8).map(chip).join("") +
-        "</div></section>";
-    }
-
-    html +=
-      '<section class="section"><div class="section-head">' +
-      '<h2 class="section-title">Explorer par catégorie</h2>' +
-      '<span class="section-count">' + state.categories.length + " catégories</span>" +
-      "</div><div class=\"cat-grid\">" +
-      state.categories.map(categoryTile).join("") +
-      "</div></section>";
-
+    html += categoriesSection();
     return html;
+  }
+
+  /** Salutation nominative quand Windows veut bien donner son nom. */
+  function greetingLine() {
+    var hour = new Date().getHours();
+    var moment = hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi" : "Bonsoir";
+    var name = String(state.capabilities.userName || "").trim();
+    var date = new Date().toLocaleDateString("fr-FR", {
+      weekday: "long",
+      day: "numeric",
+      month: "long"
+    });
+    return (
+      '<p class="greeting">' + esc(moment) + (name ? ", " + esc(name) : "") +
+      " — " + esc(date) + "</p>"
+    );
   }
 
   /* ── Informations du département informatique ──────────────────────────── */
 
   /**
-   * Carrousel des informations poussées par l'administration.
+   * Bandeau d'information : une ligne, 52 px, quel que soit le nombre
+   * d'informations. Le carrousel d'origine en occupait 307 — trois fois le
+   * premier écran — alors qu'il ne contient que des annonces.
    *
-   * Le défilement est horizontal avec accroche : les flèches, les pastilles, la
-   * molette et le clavier fonctionnent sans JavaScript. La rotation automatique
-   * s'arrête au survol, à la prise de focus, et reste désactivée si la machine
-   * demande de réduire les animations.
+   * Les points d'accroche de initCarousel sont conservés à l'identique
+   * (`data-carousel`, `.carousel-track`, `.news-slide`, flèches, pastilles,
+   * pause) : la rotation, la pause au survol et au focus, et le respect de
+   * « animations réduites » continuent de fonctionner sans une ligne de plus.
    */
-  function newsCarousel(news) {
+  function newsStrip(news) {
     var items = news.items;
     var many = items.length > 1;
 
     var nav = many
-      ? '<span class="section-action carousel-nav">' +
+      ? '<span class="carousel-nav">' +
         // Pause explicite : une rotation automatique doit pouvoir être arrêtée
         // pour de bon, pas seulement suspendue tant que le pointeur traîne
         // dessus (WCAG 2.2.2).
         '<button class="iconbtn iconbtn-sm" type="button" data-slide-pause aria-pressed="false" ' +
         'aria-label="Mettre la rotation en pause" title="Mettre la rotation en pause">' +
-        svg("pause", 16) + "</button>" +
+        svg("pause", 15) + "</button>" +
         '<button class="iconbtn iconbtn-sm" type="button" data-slide-prev ' +
         'aria-label="Information précédente" title="Information précédente">' +
-        svg("chevronLeft", 16) + "</button>" +
+        svg("chevronLeft", 15) + "</button>" +
         '<button class="iconbtn iconbtn-sm" type="button" data-slide-next ' +
         'aria-label="Information suivante" title="Information suivante">' +
-        svg("chevronRight", 16) + "</button>" +
+        svg("chevronRight", 15) + "</button>" +
         "</span>"
       : "";
 
@@ -785,41 +777,31 @@
       : "";
 
     return (
-      '<section class="section news-section" data-carousel aria-label="' +
+      '<section class="news-strip" data-carousel aria-label="' +
       esc(news.title || "Informations du département informatique") + '">' +
-      '<div class="section-head">' +
-      '<h2 class="section-title"><span class="section-ico">' + svg("bullhorn", 17) + "</span>" +
-      esc(news.title || "Informations du département informatique") + "</h2>" +
-      (news.subtitle ? '<span class="section-count">' + esc(news.subtitle) + "</span>" : "") +
-      nav +
-      "</div>" +
+      '<span class="news-strip-ico" aria-hidden="true">' + svg("bullhorn", 17) + "</span>" +
       '<div class="carousel-track" tabindex="0" aria-live="polite">' +
-      items.map(newsSlide).join("") +
+      items.map(newsStripSlide).join("") +
       "</div>" +
+      nav +
       dots +
       "</section>"
     );
   }
 
-  function newsSlide(item, index, all) {
-    var media = item.image
-      ? '<div class="news-media"><img alt="" src="' + esc(item.image) + '"></div>'
-      : '<div class="news-media news-media-plain" aria-hidden="true">' + svg("bullhorn", 38) + "</div>";
-
+  function newsStripSlide(item, index, all) {
     return (
       '<article class="news-slide" role="group" aria-roledescription="information" ' +
       'aria-label="' + (index + 1) + " sur " + all.length + '">' +
-      media +
-      '<div class="news-body">' +
+      '<button class="news-line" type="button" data-action="news-open" data-id="' +
+      esc(item.id) + '">' +
       (item.date ? '<span class="news-date">' + esc(item.date) + "</span>" : "") +
-      (item.title ? '<h3 class="news-title">' + esc(item.title) + "</h3>" : "") +
-      (item.text ? '<p class="news-text">' + esc(item.text) + "</p>" : "") +
-      (item.url
-        ? '<button class="btn btn-sm btn-primary news-link" type="button" data-action="news-link" ' +
-          'data-id="' + esc(item.id) + '">' + esc(item.linkLabel || "En savoir plus") +
-          svg("arrowUpRight", 14) + "</button>"
+      '<span class="news-headline">' + esc(item.title || item.text || "") + "</span>" +
+      (item.image
+        ? '<img class="news-thumb" alt="" src="' + esc(item.image) + '">'
         : "") +
-      "</div></article>"
+      '<span class="news-go" aria-hidden="true">' + svg("chevronRight", 16) + "</span>" +
+      "</button></article>"
     );
   }
 
@@ -1067,32 +1049,294 @@
     });
   }
 
-  /** Affiche les captures d'écran d'un outil, sans quitter l'accueil. */
-  function openPreview(id) {
-    var app = state.byId[id];
-    if (!app || !Array.isArray(app.screenshots) || !app.screenshots.length) return;
-    var cta = app.type === "local" ? "Lancer" : "Ouvrir";
+  /* ── Panneau latéral ───────────────────────────────────────────────────────
+     Un panneau qui glisse depuis la droite, sans voile : la page reste lisible
+     et cliquable derrière. C'est le principe — consulter une information ou la
+     fiche d'un outil ne doit pas coûter la perte du contexte. Il remplace la
+     boîte de dialogue des captures d'écran, qui masquait tout le catalogue
+     pour montrer trois images.
+  ─────────────────────────────────────────────────────────────────────────── */
 
-    var body =
-      '<div class="preview-gallery">' +
-      app.screenshots
-        .map(function (src) {
-          return (
-            '<figure class="preview-shot"><img alt="Capture d\'écran de ' +
-            esc(app.name) + '" src="' + esc(src) + '"></figure>'
-          );
+  /** Élément à re-focaliser à la fermeture : sans cela, le focus est perdu. */
+  var drawerReturnFocus = null;
+
+  function openDrawer(spec) {
+    if (!spec || !spec.id) return;
+    if (!drawerReturnFocus && document.activeElement) {
+      drawerReturnFocus = document.activeElement;
+    }
+    state.drawer = { kind: spec.kind === "news" ? "news" : "app", id: spec.id };
+    renderDrawer();
+  }
+
+  function closeDrawer() {
+    if (!state.drawer) return;
+    state.drawer = null;
+    renderDrawer();
+  }
+
+  function renderDrawer() {
+    if (!els.drawer) return;
+    var spec = state.drawer;
+
+    if (!spec) {
+      els.drawer.hidden = true;
+      els.drawer.setAttribute("inert", "");
+      els.drawer.setAttribute("aria-hidden", "true");
+      els.drawer.removeAttribute("data-open");
+      // La page redevient atteignable au clavier dès que le panneau se referme.
+      els.app.removeAttribute("inert");
+      if (drawerReturnFocus && document.contains(drawerReturnFocus)) {
+        // preventScroll : rendre le focus ne doit pas faire sauter la page.
+        try {
+          drawerReturnFocus.focus({ preventScroll: true });
+        } catch (error) {
+          drawerReturnFocus.focus();
+        }
+      }
+      drawerReturnFocus = null;
+      return;
+    }
+
+    if (spec.kind === "news") {
+      var item = newsById(spec.id);
+      // L'information peut avoir disparu d'un catalogue rechargé entre-temps.
+      if (!item) {
+        state.drawer = null;
+        renderDrawer();
+        return;
+      }
+      els.drawerTitle.textContent = item.title || "Information";
+      els.drawerBody.innerHTML =
+        (item.image
+          ? '<div class="drawer-figure"><img alt="" src="' + esc(item.image) + '"></div>'
+          : "") +
+        (item.date ? '<p class="drawer-date">' + esc(item.date) + "</p>" : "") +
+        (item.title ? '<h3 class="drawer-heading">' + esc(item.title) + "</h3>" : "") +
+        (item.text ? '<p class="drawer-text">' + esc(item.text) + "</p>" : "");
+      els.drawerFoot.innerHTML = item.url
+        ? '<button class="btn btn-primary" type="button" data-action="news-link" data-id="' +
+          esc(item.id) + '">' + esc(item.linkLabel || "En savoir plus") +
+          svg("arrowUpRight", 14) + "</button>"
+        : "";
+    } else {
+      var app = state.byId[spec.id];
+      if (!app) {
+        state.drawer = null;
+        renderDrawer();
+        return;
+      }
+      var favorite = isFavorite(app.id);
+      var label = favorite ? "Retirer des favoris" : "Ajouter aux favoris";
+      var shots = Array.isArray(app.screenshots) ? app.screenshots : [];
+
+      els.drawerTitle.textContent = app.name;
+      els.drawerBody.innerHTML =
+        (app.image ? appVisual(app, "drawer-visual") : "") +
+        '<div class="drawer-eyebrow" data-cat="' + esc(app.category) + '">' +
+        '<span class="dot"></span><span class="cat">' + esc(app.category) + "</span>" +
+        (app.meta ? '<span class="sep">·</span><span class="trunc">' + esc(app.meta) + "</span>" : "") +
+        "</div>" +
+        (app.description ? '<p class="drawer-text">' + esc(app.description) + "</p>" : "") +
+        (shots.length
+          ? '<div class="drawer-gallery">' +
+            shots
+              .map(function (src) {
+                return (
+                  '<figure class="preview-shot"><img alt="Capture d\'écran de ' +
+                  esc(app.name) + '" src="' + esc(src) + '"></figure>'
+                );
+              })
+              .join("") +
+            "</div>"
+          : "");
+      els.drawerFoot.innerHTML =
+        '<button class="btn btn-primary" type="button" data-action="open" data-id="' +
+        esc(app.id) + '">' + esc(app.type === "local" ? "Lancer" : "Ouvrir") + "</button>" +
+        '<button class="btn" type="button" data-action="fav" data-id="' + esc(app.id) +
+        '" aria-pressed="' + (favorite ? "true" : "false") + '" aria-label="' + label +
+        '" title="' + label + '">' + svg("star", 15) + esc(label) + "</button>";
+
+      // La couleur de la catégorie décore le panneau comme elle décore les
+      // cartes : posée par CSSOM, donc compatible avec la CSP.
+      Array.prototype.forEach.call(
+        els.drawer.querySelectorAll("[data-cat]"),
+        function (node) {
+          decorate(node, node.getAttribute("data-cat"));
+        }
+      );
+    }
+
+    els.drawer.hidden = false;
+    els.drawer.removeAttribute("inert");
+    els.drawer.removeAttribute("aria-hidden");
+    els.drawer.setAttribute("data-open", "true");
+    // La page reste visible mais n'est plus tabulable : sans cela, la tabulation
+    // sort du panneau et l'utilisateur au clavier se perd derrière.
+    els.app.setAttribute("inert", "");
+    if (els.drawerClose) els.drawerClose.focus();
+  }
+
+  function newsById(id) {
+    if (!state.news) return null;
+    var found = null;
+    state.news.items.forEach(function (item) {
+      if (item.id === id) found = item;
+    });
+    return found;
+  }
+
+  /* ── Mes outils, tous les outils, catégories ───────────────────────────── */
+
+  /** L'outil d'une tuile compacte : marque, nom, et pourquoi il est là. */
+  function toolTile(app, flag) {
+    return (
+      '<button class="tool-tile" type="button" data-action="open" data-id="' + esc(app.id) +
+      '" data-cat="' + esc(app.category) + '" title="' + esc(app.description) + '">' +
+      '<span class="tool-mark">' + appMark(app, 30) + "</span>" +
+      '<span class="tool-name">' + esc(app.name) + "</span>" +
+      '<span class="tool-flag" aria-hidden="true">' +
+      svg(flag === "star" ? "star" : "clock", 13) + "</span>" +
+      "</button>"
+    );
+  }
+
+  /**
+   * « Mes outils » : favoris d'abord, puis les derniers ouverts, sans doublon.
+   * Dix au plus — au-delà, la rangée devient une liste qu'on ne lit plus, et
+   * « Tous les outils » est juste en dessous.
+   */
+  function myTools(favorites, recents) {
+    var seen = {};
+    var entries = [];
+
+    favorites.forEach(function (app) {
+      if (entries.length >= 10 || seen[app.id]) return;
+      seen[app.id] = true;
+      entries.push({ app: app, flag: "star" });
+    });
+    recents.forEach(function (app) {
+      if (entries.length >= 10 || seen[app.id]) return;
+      seen[app.id] = true;
+      entries.push({ app: app, flag: "clock" });
+    });
+
+    var more =
+      '<button class="tool-tile tool-tile-more" type="button" data-action="route" ' +
+      'data-route="all">' +
+      '<span class="tool-mark">' + svg("grid", 30) + "</span>" +
+      '<span class="tool-name">Tous les outils</span></button>';
+
+    var body = entries.length
+      ? '<div class="tool-row">' +
+        entries
+          .map(function (entry) {
+            return toolTile(entry.app, entry.flag);
+          })
+          .join("") +
+        more +
+        "</div>"
+      : emptyState(
+          "star",
+          "Vos outils habituels apparaîtront ici",
+          "Étoilez un outil depuis le catalogue : il sera toujours à portée de clic.",
+          false
+        );
+
+    return (
+      '<section class="section section-tools"><div class="section-head">' +
+      '<h2 class="section-title">Mes outils</h2>' +
+      '<span class="section-count">favoris et derniers utilisés</span>' +
+      (entries.length
+        ? '<span class="section-action"><button class="btn btn-subtle btn-sm" type="button" ' +
+          'data-action="route" data-route="favorites">Gérer</button></span>'
+        : "") +
+      "</div>" + body + "</section>"
+    );
+  }
+
+  /** Rangée de filtres de « Tous les outils », avec l'effectif de chacun. */
+  function filterRow() {
+    function chip(value, label, count) {
+      var active = state.homeFilter === value;
+      return (
+        '<button class="filter-chip" type="button" data-action="home-filter" ' +
+        'data-value="' + esc(value) + '" aria-pressed="' + (active ? "true" : "false") + '">' +
+        esc(label) + '<span class="filter-count">' + count + "</span></button>"
+      );
+    }
+
+    return (
+      '<div class="filter-row" role="group" aria-label="Filtrer par catégorie">' +
+      chip("", "Tous", state.apps.length) +
+      state.categories
+        .map(function (name) {
+          return chip(name, name, appsIn(name).length);
         })
         .join("") +
-      "</div>" +
-      (app.description ? '<p class="preview-desc">' + esc(app.description) + "</p>" : "");
-
-    showDialog(
-      app.name,
-      body,
-      '<button class="btn" type="button" data-action="close-dialog">Fermer</button>' +
-        '<button class="btn btn-primary" type="button" data-action="open" data-id="' +
-        esc(app.id) + '">' + esc(cta) + "</button>"
+      "</div>"
     );
+  }
+
+  function catalogueSection() {
+    var active = state.homeFilter;
+    var apps = active
+      ? state.apps.filter(function (app) {
+          return app.category === active;
+        })
+      : state.apps;
+
+    var html =
+      '<section class="section" id="catalogue"><div class="section-head">' +
+      '<h2 class="section-title">Tous les outils</h2>' +
+      '<span class="section-count">' + apps.length +
+      (apps.length > 1 ? " outils" : " outil") +
+      (active ? " · " + esc(active) : "") + "</span>" +
+      '<span class="section-action"><button class="btn btn-subtle btn-sm" type="button" ' +
+      'data-action="palette">' + svg("search", 15) + "Rechercher</button></span>" +
+      "</div>" +
+      filterRow();
+
+    html += apps.length
+      ? grid(apps)
+      : emptyState("search", "Aucun outil dans cette catégorie", "Essayez une autre catégorie.", false);
+
+    return html + "</section>";
+  }
+
+  function categoriesSection() {
+    return (
+      '<section class="section"><div class="section-head">' +
+      '<h2 class="section-title">Explorer par catégorie</h2>' +
+      '<span class="section-count">' + state.categories.length + " catégories</span>" +
+      "</div><div class=\"cat-grid\">" +
+      state.categories.map(categoryTile).join("") +
+      "</div></section>"
+    );
+  }
+
+  /**
+   * Filtre appliqué depuis une tuile de l'accueil. Après le rendu, la page est
+   * ramenée sur la grille : sans cela, filtrer renvoie en haut de l'accueil et
+   * il faut redescendre à chaque essai pour voir le résultat.
+   */
+  function applyHomeFilter(value, node) {
+    state.homeFilter = value;
+    render();
+    var section = document.getElementById("catalogue");
+    if (section && els.content) {
+      // Position calculée par les rectangles : offsetTop seul ignore les
+      // décalages introduits par les ancêtres positionnés.
+      var delta = section.getBoundingClientRect().top - els.content.getBoundingClientRect().top;
+      els.content.scrollTop += delta;
+    }
+    if (node && node.focus) {
+      try {
+        node.focus({ preventScroll: true });
+      } catch (error) {
+        node.focus();
+      }
+    }
   }
 
   function categoryTile(name) {
@@ -1157,18 +1401,6 @@
     }
   }
 
-  function chip(app) {
-    var entry = usageOf(app.id);
-    return (
-      '<button class="chip" type="button" data-action="open" data-id="' + esc(app.id) +
-      '" data-cat="' + esc(app.category) + '" title="' + esc(app.description) + '">' +
-      '<span class="chip-mark">' + appMark(app, 14) + "</span>" +
-      esc(app.name) +
-      (entry.last ? '<span class="chip-time">' + esc(relativeTime(entry.last)) + "</span>" : "") +
-      "</button>"
-    );
-  }
-
   /* ── Toutes les vues « grille » ────────────────────────────────────────── */
 
   function pageHead(title, iconName, count, description, categoryName) {
@@ -1216,46 +1448,43 @@
     );
   }
 
+  /**
+   * Tuile de lanceur : une vignette ou la marque, le nom, la catégorie. C'est le
+   * motif du menu Démarrer — on balaie la grille du regard au lieu de lire des
+   * fiches.
+   *
+   * La description, le détail d'usage et les captures sont sortis de la tuile :
+   * ils sont dans le panneau latéral, ouvert par la pastille « détails ». Une
+   * tuile n'a donc qu'une action principale — cliquer lance l'outil — et une
+   * seule hauteur, avec ou sans vignette.
+   */
   function appCard(app) {
-    var entry = usageOf(app.id);
     var favorite = isFavorite(app.id);
-    var cta = app.type === "local" ? "Lancer" : "Ouvrir";
+    var favLabel = favorite ? "Retirer des favoris" : "Ajouter aux favoris";
     var shots = Array.isArray(app.screenshots) ? app.screenshots.length : 0;
 
     return (
       '<article class="app-card' + (app.image ? " has-visual" : "") + '" data-cat="' +
       esc(app.category) + '" data-action="open" data-id="' + esc(app.id) + '">' +
-      (app.image ? appVisual(app, "app-visual") : "") +
       '<div class="app-card-head">' +
-      '<span class="app-mark">' + appMark(app, 22) + "</span>" +
-      '<div class="app-card-title">' +
-      '<div class="app-name" title="' + esc(app.name) + '">' + esc(app.name) + "</div>" +
-      '<div class="app-eyebrow"><span class="dot"></span>' +
-      '<span class="cat">' + esc(app.category) + "</span>" +
-      (app.meta ? '<span class="sep">·</span><span class="trunc">' + esc(app.meta) + "</span>" : "") +
-      "</div></div>" +
-      (app.badge > 0 ? '<span class="badge" title="' + app.badge + ' éléments">' + app.badge + "</span>" : "") +
-      '<button class="fav" type="button" data-action="fav" data-id="' + esc(app.id) +
-      '" aria-pressed="' + (favorite ? "true" : "false") + '" aria-label="' +
-      (favorite ? "Retirer des favoris" : "Ajouter aux favoris") + '" title="' +
-      (favorite ? "Retirer des favoris" : "Ajouter aux favoris") + '">' +
-      svg("star", 16) + "</button>" +
-      "</div>" +
-      '<p class="app-desc">' + esc(app.description) + "</p>" +
-      '<div class="app-card-foot">' +
-      (entry.count > 1
-        ? '<span class="app-usage">ouvert ' + entry.count + " fois</span>"
-        : '<span class="app-usage"></span>') +
-      (shots
-        ? '<button class="btn btn-sm btn-subtle app-shot-btn" type="button" data-action="preview" ' +
-          'data-id="' + esc(app.id) + '" title="Voir les captures d\'écran" aria-label="Aperçu de ' +
-          esc(app.name) + ' : ' + shots + (shots > 1 ? " captures" : " capture") + '">' +
-          svg("images", 15) + "<span>" + shots + "</span></button>"
+      (app.image
+        ? '<span class="app-thumb"><img alt="" src="' + esc(app.image) + '"></span>'
+        : '<span class="app-mark">' + appMark(app, 22) + "</span>") +
+      '<span class="app-card-title">' +
+      '<span class="app-name" title="' + esc(app.name) + '">' + esc(app.name) + "</span>" +
+      '<span class="app-cat">' + esc(app.category) + "</span>" +
+      "</span></div>" +
+      (app.badge > 0
+        ? '<span class="badge" title="' + app.badge + ' éléments">' + app.badge + "</span>"
         : "") +
-      '<span class="app-open">' + cta + svg("arrowUpRight", 15) + "</span>" +
-      '<button class="btn btn-sm btn-primary" type="button" data-action="open" data-id="' +
-      esc(app.id) + '">' + esc(cta) + "</button>" +
-      "</div></article>"
+      '<button class="fav" type="button" data-action="fav" data-id="' + esc(app.id) +
+      '" aria-pressed="' + (favorite ? "true" : "false") + '" aria-label="' + favLabel +
+      '" title="' + favLabel + '">' + svg("star", 15) + "</button>" +
+      '<button class="app-shot-btn" type="button" data-action="preview" data-id="' +
+      esc(app.id) + '" title="Voir la fiche de ' + esc(app.name) + '" aria-label="Fiche de ' +
+      esc(app.name) + (shots ? " : " + shots + (shots > 1 ? " captures" : " capture") : "") +
+      '">' + svg("images", 15) + "</button>" +
+      "</article>"
     );
   }
 
@@ -1418,31 +1647,57 @@
     return actions;
   }
 
+  /** Une entrée « outil » de la palette, dans la forme attendue par le rendu. */
+  function paletteAppItem(app, group, score) {
+    return {
+      group: group,
+      label: app.name,
+      desc: app.category + (app.meta ? " · " + app.meta : ""),
+      mark: app.mark || app.name.slice(0, 2),
+      appIcon: app.icon || null,
+      category: app.category,
+      score: score,
+      run: function () {
+        openApp(app.id);
+      },
+      favoriteToggle: app.id
+    };
+  }
+
   function buildPalette(query) {
     var tokens = tokensOf(query);
     var hasQuery = tokens.length > 0;
     var items = [];
 
-    state.apps.forEach(function (app) {
-      var best = hasQuery
-        ? appScore(app, tokens)
-        : usageOf(app.id).count * 2 + (isFavorite(app.id) ? 6 : 0);
-      if (!hasQuery || best > 0) {
-        items.push({
-          group: "Outils",
-          label: app.name,
-          desc: app.category + (app.meta ? " · " + app.meta : ""),
-          mark: app.mark || app.name.slice(0, 2),
-          appIcon: app.icon || null,
-          category: app.category,
-          score: best + 40,
-          run: function () {
-            openApp(app.id);
-          },
-          favoriteToggle: app.id
-        });
-      }
-    });
+    if (!hasQuery) {
+      /*
+         Champ vide : les outils déjà installés dans les habitudes passent
+         devant. Une liste alphabétique de vingt-trois entrées oblige à lire
+         tout le catalogue pour retrouver celui qu'on ouvre tous les jours.
+         Les groupes restent des entrées `palette-opt` ordinaires : la
+         navigation au clavier et Entrée ne changent pas.
+      */
+      var seen = {};
+      recentApps(5).forEach(function (app) {
+        seen[app.id] = true;
+        items.push(paletteAppItem(app, "Récents", 0));
+      });
+      favoriteApps().forEach(function (app) {
+        if (seen[app.id]) return;
+        seen[app.id] = true;
+        items.push(paletteAppItem(app, "Favoris", 0));
+      });
+      state.apps.forEach(function (app) {
+        if (seen[app.id]) return;
+        seen[app.id] = true;
+        items.push(paletteAppItem(app, "Outils", 0));
+      });
+    } else {
+      state.apps.forEach(function (app) {
+        var best = appScore(app, tokens);
+        if (best > 0) items.push(paletteAppItem(app, "Outils", best + 40));
+      });
+    }
 
     state.categories.forEach(function (name) {
       var meta = categoryMeta(name);
@@ -1483,7 +1738,10 @@
         return b.score - a.score;
       });
     }
-    return items.slice(0, 60);
+    // La coupe ne doit jamais emporter les catégories ni les actions, qui
+    // ferment la liste : sur un catalogue vide, l'accueil doit rester
+    // atteignable depuis la palette.
+    return hasQuery ? items.slice(0, 60) : items;
   }
 
   function renderPalette() {
@@ -1745,7 +2003,7 @@
       ["F11", "Passer en plein écran, ou revenir à la fenêtre"],
       ["Ctrl + ,", "Ouvrir les réglages"],
       ["Alt + ←", "Revenir à la vue précédente"],
-      ["Alt + 1 à 9", "Accueil, catalogue, favoris, récents, puis les catégories"],
+      ["Alt + 1 à 9", "Accueil, tous les outils, puis les catégories"],
       ["↑ ↓ puis Entrée", "Parcourir et ouvrir un résultat dans la recherche globale"],
       ["Ctrl + Entrée", "Mettre le résultat sélectionné en favori"],
       ["Échap", "Effacer la recherche ou fermer la fenêtre active"]
@@ -2059,10 +2317,21 @@
           openApp(target.getAttribute("data-id"));
           break;
         case "preview":
-          openPreview(target.getAttribute("data-id"));
+          // Le bouton de captures des cartes ouvre désormais le panneau : la
+          // page reste visible pendant qu'on regarde les images.
+          openDrawer({ kind: "app", id: target.getAttribute("data-id") });
+          break;
+        case "news-open":
+          openDrawer({ kind: "news", id: target.getAttribute("data-id") });
           break;
         case "news-link":
           openNewsLink(target.getAttribute("data-id"));
+          break;
+        case "home-filter":
+          applyHomeFilter(target.getAttribute("data-value"), target);
+          break;
+        case "close-drawer":
+          closeDrawer();
           break;
         case "fav":
           toggleFavorite(target.getAttribute("data-id"));
@@ -2156,6 +2425,8 @@
     els.help.addEventListener("click", openHelp);
     els.dialogClose.addEventListener("click", closeDialog);
 
+    if (els.drawerClose) els.drawerClose.addEventListener("click", closeDrawer);
+
     els.palette.addEventListener("mousedown", function (event) {
       if (event.target === els.palette) closePalette();
     });
@@ -2194,7 +2465,7 @@
         if (event.defaultPrevented || event.ctrlKey) return;
         var node = event.target;
         // Ces zones défilent pour leur propre compte : ne pas s'en mêler.
-        if (node && node.closest && node.closest(".content, .rail-scroll, .palette, .dialog")) {
+        if (node && node.closest && node.closest(".content, .rail-scroll, .palette, .dialog, .drawer")) {
           return;
         }
         if (!els.content) return;
@@ -2284,6 +2555,13 @@
       // par un utilisateur qui s'est retrouvé sans barre de titre.
       if (state.fullscreen) {
         setFullscreen(false);
+        event.preventDefault();
+        return;
+      }
+      // Le panneau s'efface avant tout le reste : il est posé par-dessus la
+      // page, et c'est lui que l'utilisateur voit quand il appuie sur Échap.
+      if (state.drawer) {
+        closeDrawer();
         event.preventDefault();
         return;
       }

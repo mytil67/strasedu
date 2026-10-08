@@ -606,7 +606,7 @@ svg {
 .content {
   overflow-y: auto;
   overflow-x: hidden;
-  padding: var(--sp-2) var(--sp-6) var(--sp-10);
+  padding: 0 var(--sp-6) var(--sp-8);
   scroll-behavior: smooth;
 }
 
@@ -797,34 +797,287 @@ html[data-theme="dark"] .status-chip[data-action]:hover {
   flex-wrap: wrap;
 }
 
-/* Héros de l'accueil ------------------------------------------------------ */
+/* Ligne de salutation de l'accueil ---------------------------------------- */
 
-.hero {
-  padding: var(--sp-8) 0 var(--sp-6);
-}
-
-.hero-title {
-  margin: 0;
+/* Elle remplace un héros de 210 px qui ne menait à aucun outil : le nom et la
+   date situent la session, et le catalogue commence tout de suite après. */
+.greeting {
+  margin: var(--sp-1) 0 0;
   font-family: var(--font-display);
-  font-size: 34px;
-  font-weight: 650;
-  letter-spacing: -0.025em;
-  line-height: 1.15;
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-1);
 }
 
-.hero-sub {
-  margin: var(--sp-3) 0 0;
-  font-size: var(--fs-md);
-  color: var(--text-2);
-  max-width: 62ch;
-}
+/* Bandeau d'information --------------------------------------------------- */
 
-.hero-cta {
+/*
+  Une seule ligne, quelle que soit la longueur des informations : le carrousel
+  d'origine en occupait 307 px, soit près de la moitié du premier écran, pour
+  des annonces. Le texte n'est pas tronqué sans recours — la ligne entière
+  ouvre le panneau latéral, qui donne le titre, la date, le texte et le lien.
+
+  Le bandeau est le conteneur, et non plus la diapositive : c'est ce qui rend
+  la hauteur fixe possible. Le rail défilant est posé en absolu par-dessus, ce
+  qui garantit les 52 px mesurés même quand une image impose sa hauteur.
+*/
+.news-strip {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: var(--sp-3);
-  margin-top: var(--sp-5);
+  height: 52px;
+  margin-top: var(--sp-2);
+  padding: 0 var(--sp-2) 0 var(--sp-3);
+  gap: var(--sp-2);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+}
+
+.news-strip-ico {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-sm);
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+}
+
+/* Le rail défilant prend la place restante, et s'arrête AVANT l'icône, la
+   navigation et les pastilles : c'est ce qui empêche la ligne — son image et
+   son chevron — de passer dessous. La hauteur du bandeau reste celle du
+   conteneur, quoi qu'il arrive au contenu. */
+.news-strip .carousel-track {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+}
+
+.news-strip .carousel-nav {
+  position: relative;
+  z-index: 1;
+  flex: none;
+}
+
+.news-strip .carousel-dots {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  margin: 0;
+}
+
+/* Chaque diapositive occupe toute la largeur du rail : une information à la
+   fois, comme avant, mais sans hauteur propre. */
+.news-strip .news-slide {
+  height: 100%;
+}
+
+.news-line {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  height: 100%;
+  min-height: 32px;
+  /* L'icône est hors du rail : un simple retrait suffit, et la ligne garde le
+     reste de la largeur pour son titre. */
+  padding: 0 var(--sp-2);
+  text-align: left;
+  color: var(--text-1);
+  background: none;
+  transition: background var(--dur-1) var(--ease);
+}
+
+.news-line:hover {
+  background: var(--hover);
+}
+
+/* Le titre tient sur une ligne quoi qu'il arrive : c'est la règle du bandeau. */
+.news-headline {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-base);
+  font-weight: 550;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.news-line .news-date {
+  flex: none;
+}
+
+.news-thumb {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  /* Coins arrondis et liseré : réduit à 34 px, un aplat vert se lirait sinon
+     comme un rectangle posé là, et non comme une vignette. */
+  border-radius: var(--r-md);
+  border: 1px solid var(--stroke-strong);
+  object-fit: cover;
+  display: block;
+  background: var(--surface-3);
+}
+
+.news-go {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  color: var(--text-3);
+}
+
+/* Mes outils -------------------------------------------------------------- */
+
+.tool-row {
+  display: flex;
+  gap: var(--sp-2);
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px;
+  scrollbar-width: thin;
+}
+
+/* Les tuiles défilent horizontalement : les comprimer serait pire que de
+   laisser la rangée défiler, et la onzième tuile mène au catalogue complet. */
+.tool-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  width: 88px;
+  height: 92px;
+  padding: 0 var(--sp-1);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  box-shadow: var(--shadow-1);
+  transition: border-color var(--dur-2) var(--ease), transform var(--dur-2) var(--ease),
+    box-shadow var(--dur-2) var(--ease);
+}
+
+.tool-tile:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--cat-color, var(--accent)) 45%, var(--stroke));
+  box-shadow: var(--shadow-2);
+}
+
+.tool-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-lg);
+  font-size: var(--fs-base);
+  font-weight: 700;
+  color: var(--cat-ink, var(--accent-ink));
+  background: var(--cat-soft, var(--accent-soft));
+}
+
+.tool-name {
+  /* Deux lignes au maximum : un nom plus long est coupé, la fiche donne le
+     reste. La hauteur est réservée pour que toutes les tuiles s'alignent. */
+  height: 2.6em;
+  font-size: var(--fs-sm);
+  font-weight: 550;
+  line-height: 1.3;
+  text-align: center;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* L'étoile et l'horloge disent pourquoi l'outil est là : c'est une
+   information, pas une décoration. Une forme pleine se reconnaît d'un coup
+   d'œil, là où un contour de 13 px se lit comme un point gris. */
+.tool-flag {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--r-full);
+  color: var(--text-3);
+  background: var(--surface-inset);
+}
+
+.tool-flag svg {
+  fill: currentColor;
+}
+
+.tool-tile:hover .tool-flag {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+}
+
+.tool-tile-more {
+  color: var(--text-2);
+  border-style: dashed;
+}
+
+.tool-tile-more .tool-mark {
+  color: var(--text-2);
+  background: var(--surface-inset);
+}
+
+/* Filtres du catalogue ---------------------------------------------------- */
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
   flex-wrap: wrap;
+  margin-bottom: var(--sp-4);
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--stroke-strong);
+  border-radius: var(--r-full);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  font-weight: 550;
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease);
+}
+
+.filter-chip:hover {
+  background: var(--hover);
+  color: var(--text-1);
+}
+
+.filter-chip[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.filter-count {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  opacity: 0.72;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Boutons ----------------------------------------------------------------- */
@@ -920,14 +1173,14 @@ html[data-theme="dark"] .status-chip[data-action]:hover {
 /* Sections ----------------------------------------------------------------- */
 
 .section {
-  margin-top: var(--sp-8);
+  margin-top: var(--sp-6);
 }
 
 .section-head {
   display: flex;
   align-items: baseline;
   gap: var(--sp-3);
-  margin-bottom: var(--sp-4);
+  margin-bottom: var(--sp-3);
 }
 
 .section-title {
@@ -1072,28 +1325,39 @@ html[data-theme="dark"] .status-chip[data-action]:hover {
   padding-left: 13px;
 }
 
-/* Fiches outil ------------------------------------------------------------ */
+/* Tuiles de lanceur ------------------------------------------------------- */
 
+/*
+  Une seule forme de tuile dans toute l'application — accueil, catalogue,
+  catégories, favoris, récents. Le motif est celui d'un lanceur : on balaie la
+  grille du regard pour retrouver une application, on ne lit pas des fiches.
+
+  `stretch` et non `start` : dans une rangée, la vignette d'un outil ne doit pas
+  faire une tuile plus haute que celle de son voisin qui n'en a pas. C'est la
+  hauteur de la rangée qui décide, et le contenu se centre dedans.
+*/
 .app-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(272px, 1fr));
-  gap: var(--sp-3);
-  /* Une carte sans visuel ne doit pas être étirée à la hauteur d'une carte qui
-     en a un : le vide laissé au-dessus du pied se voit plus que l'irrégularité. */
-  align-items: start;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: var(--sp-2);
+  align-items: stretch;
+  /* Hauteur de référence de la tuile : une vignette, deux lignes de nom, la
+     catégorie. La grille étire ensuite chaque rangée à la tuile la plus haute,
+     donc toutes les tuiles d'une rangée sont égales au pixel — avec ou sans
+     visuel. */
+  grid-auto-rows: 100px;
 }
 
 .app-grid[data-density="compact"] {
-  grid-template-columns: repeat(auto-fill, minmax(228px, 1fr));
-  gap: var(--sp-2);
+  grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
 }
 
 .app-card {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--sp-3);
-  padding: var(--sp-4);
+  justify-content: center;
+  padding: var(--sp-2) var(--sp-3);
   text-align: left;
   cursor: pointer;
   background: var(--surface-2);
@@ -1104,26 +1368,53 @@ html[data-theme="dark"] .status-chip[data-action]:hover {
     box-shadow var(--dur-2) var(--ease);
 }
 
-.app-card:hover {
+/* Le survol et la prise de focus disent que la tuile est cliquable — le bouton
+   « Ouvrir » qu'on a retiré n'est pas remplacé par du texte, mais par l'état. */
+.app-card:hover,
+.app-card:focus-within {
   transform: translateY(-1px);
-  border-color: color-mix(in srgb, var(--cat-color, var(--accent)) 45%, var(--stroke));
+  border-color: color-mix(in srgb, var(--cat-color, var(--accent)) 55%, var(--stroke));
   box-shadow: var(--shadow-2);
 }
 
 .app-card-head {
   display: flex;
-  align-items: flex-start;
-  gap: var(--sp-3);
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
 }
 
+/* Vignette en ligne, à gauche : 44 px, coins arrondis et liseré pour qu'elle se
+   lise comme une vignette. Les visuels du catalogue sont des aplats dégradés,
+   pas des captures : un bandeau pleine largeur n'apportait rien. */
+.app-thumb {
+  display: block;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--stroke);
+  overflow: hidden;
+  background: var(--surface-3);
+}
+
+.app-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Sans vignette, la marque occupe exactement la même place : c'est ce qui rend
+   les deux formes interchangeables dans la grille. */
 .app-mark {
   flex: none;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--r-lg);
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-md);
   display: grid;
   place-items: center;
-  font-size: var(--fs-base);
+  font-size: var(--fs-md);
   font-weight: 700;
   letter-spacing: 0.01em;
   color: var(--cat-ink, var(--accent-ink));
@@ -1131,122 +1422,53 @@ html[data-theme="dark"] .status-chip[data-action]:hover {
 }
 
 .app-card-title {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   flex: 1;
 }
 
+/* Deux lignes au plus, ellipse. La place de l'étoile est réservée sur la
+   première ligne : elle ne doit jamais passer sous le nom. */
 .app-name {
-  font-size: var(--fs-md);
+  font-size: var(--fs-base);
   font-weight: 650;
   line-height: 1.25;
+}
+
+.app-grid .app-name {
+  /* L'étoile est posée en absolu dans ce coin : la première ligne du nom lui
+     laisse la place, la seconde passe dessous. */
+  padding-right: 26px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.app-eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 3px;
-  font-size: var(--fs-sm);
-  color: var(--text-3);
-  min-width: 0;
-}
-
-.app-eyebrow .dot {
-  width: 6px;
-  height: 6px;
-  border-radius: var(--r-full);
-  background: var(--cat-color, var(--accent));
-  flex: none;
-}
-
-.app-eyebrow .sep {
-  opacity: 0.5;
-}
-
-.app-eyebrow .cat {
-  color: var(--cat-ink, var(--text-3));
-  font-weight: 600;
-}
-
-.app-eyebrow .trunc {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.app-desc {
-  margin: 0;
-  font-size: var(--fs-base);
-  color: var(--text-2);
-  line-height: var(--lh-base);
+  overflow-wrap: anywhere;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
-.app-card-foot {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  margin-top: auto;
-  padding-top: var(--sp-1);
-}
-
-.app-usage {
+.app-cat {
+  margin-top: 3px;
   font-size: var(--fs-xs);
-  color: var(--text-3);
-  margin-right: auto;
-}
-
-.app-open {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: var(--fs-sm);
   font-weight: 600;
-  color: var(--accent-ink);
-  opacity: 0;
-  transform: translateX(-4px);
-  transition: opacity var(--dur-2) var(--ease), transform var(--dur-2) var(--ease);
+  color: var(--cat-ink, var(--text-3));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.app-card:hover .app-open,
-.app-card:focus-within .app-open {
-  opacity: 1;
-  transform: none;
-}
-
-.badge {
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: var(--r-full);
-  background: var(--cat-color, var(--accent));
-  color: #fff;
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  display: inline-grid;
-  place-items: center;
-  font-variant-numeric: tabular-nums;
-}
-
-html[data-theme="dark"] .badge {
-  color: #0b0f0d;
-}
-
-/* Bouton favori ----------------------------------------------------------- */
-
+/* L'étoile reste visible en permanence : c'est un état, pas une action
+   secondaire. Elle est centrée sur la première ligne du nom, dont la marge
+   droite lui laisse la place. */
 .fav {
+  position: absolute;
+  top: 7px;
+  right: 5px;
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  margin: -4px -4px 0 0;
-  border-radius: var(--r-md);
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-sm);
   color: var(--text-3);
   transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
 }
@@ -1268,52 +1490,56 @@ html[data-theme="dark"] .fav[aria-pressed="true"] {
   fill: currentColor;
 }
 
-/* Pastilles de lancement rapide ------------------------------------------- */
-
-.chip-row {
-  display: flex;
-  gap: var(--sp-2);
-  flex-wrap: wrap;
-}
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-2);
-  min-height: 34px;
-  padding: 0 var(--sp-3) 0 var(--sp-2);
-  border-radius: var(--r-full);
-  border: 1px solid var(--stroke);
-  background: var(--surface-2);
-  font-size: var(--fs-base);
-  font-weight: 550;
-  color: var(--text-1);
-  box-shadow: var(--shadow-1);
-  transition: border-color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease),
-    background var(--dur-1) var(--ease);
-}
-
-.chip:hover {
-  transform: translateY(-1px);
-  border-color: color-mix(in srgb, var(--cat-color, var(--accent)) 50%, var(--stroke));
-}
-
-.chip .chip-mark {
-  width: 22px;
-  height: 22px;
-  border-radius: var(--r-sm);
+/* Pastille de détails : ouvre le panneau latéral. Elle n'apparaît qu'au survol
+   et à la prise de focus — donc au clavier aussi — mais reste toujours là si
+   l'outil a des captures, dont elle est alors le seul accès. */
+.app-shot-btn {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
   display: grid;
   place-items: center;
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  color: var(--cat-ink, var(--accent-ink));
-  background: var(--cat-soft, var(--accent-soft));
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-sm);
+  color: var(--text-3);
+  opacity: 0;
+  transition: opacity var(--dur-2) var(--ease), background var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease);
 }
 
-.chip .chip-time {
+.app-card:hover .app-shot-btn,
+.app-card:focus-within .app-shot-btn {
+  opacity: 1;
+}
+
+.app-shot-btn:hover {
+  background: var(--hover);
+  color: var(--accent-ink);
+}
+
+/* Le compteur est une pastille posée dans le coin bas gauche, hors du flux :
+   dans la ligne du nom, il venait se poser sur le texte (« PeerTube 4 »). */
+.badge {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--r-full);
+  background: var(--cat-color, var(--accent));
+  color: #fff;
   font-size: var(--fs-xs);
-  color: var(--text-3);
-  font-weight: 500;
+  font-weight: 700;
+  display: inline-grid;
+  place-items: center;
+  font-variant-numeric: tabular-nums;
+  box-shadow: var(--shadow-1);
+}
+
+html[data-theme="dark"] .badge {
+  color: #0b0f0d;
 }
 
 /* ── 6. Palette de commandes, dialogues, notifications ───────────────────── */
@@ -1688,12 +1914,6 @@ html[data-theme="dark"] .fav[aria-pressed="true"] {
   width: 54%;
 }
 
-.sk-sub {
-  height: 19px;
-  width: 34%;
-  margin-top: var(--sp-4);
-}
-
 .sk-tile {
   height: 208px;
 }
@@ -1751,14 +1971,31 @@ html[data-theme="dark"] .fav[aria-pressed="true"] {
     padding-left: var(--sp-4);
     padding-right: var(--sp-4);
   }
-  .hero-title {
-    font-size: 26px;
+  .greeting {
+    font-size: var(--fs-md);
+  }
+  /* Le bandeau s'étire faute de place : les pastilles passent sous la ligne,
+     la hauteur fixe ne vaut que pour la fenêtre normale. */
+  .news-strip {
+    height: auto;
+    min-height: 52px;
+    padding: var(--sp-2) var(--sp-3);
+  }
+  .news-strip .carousel-track {
+    position: static;
+    flex: 1;
+    min-width: 0;
+  }
+  .news-strip .carousel-dots {
+    flex-direction: row;
+  }
+  .news-line {
+    padding: 0 var(--sp-2);
   }
   .crumbs {
     display: none;
   }
 }
-
 /* Densité compacte -------------------------------------------------------- */
 
 html[data-density="compact"] {
@@ -1779,10 +2016,6 @@ html[data-density="compact"] .app-card {
 html[data-density="compact"] .cat-tile {
   min-height: 184px;
   padding: var(--sp-4);
-}
-
-html[data-density="compact"] .hero {
-  padding: var(--sp-6) 0 var(--sp-4);
 }
 
 html[data-density="compact"] .section {
@@ -1882,6 +2115,7 @@ html[data-density="compact"] .section {
   overflow-x: auto;
   overflow-y: hidden;
   scroll-snap-type: x mandatory;
+  scroll-behavior: auto;
   padding-bottom: var(--sp-1);
   scrollbar-width: none;
 }
@@ -1890,65 +2124,11 @@ html[data-density="compact"] .section {
   display: none;
 }
 
+/* Hauteur imposée par le bandeau : la diapositive ne fait que la remplir. */
 .news-slide {
   flex: 0 0 100%;
   scroll-snap-align: start;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  /* Hauteur FIXE, et non minimale : le carrousel ne doit jamais envahir
-     l'écran. Sans cela, une photo carrée — ramenée à 200 px de haut par
-     l'outil d'administration, mais affichée sur toute la largeur de sa
-     colonne — imposait sa hauteur à la rangée, et la diapositive montait à
-     près de 500 px : l'utilisateur ne voyait plus que cela. */
-  height: 232px;
-  background: var(--surface-2);
-  border: 1px solid var(--stroke);
-  border-radius: var(--r-xl);
-  box-shadow: var(--shadow-1);
-  overflow: hidden;
-}
-
-.news-media {
-  position: relative;
   height: 100%;
-  /* Rapport fixe plutôt qu'une largeur en pourcentage : la zone image garde la
-     même forme à toutes les tailles de fenêtre, et une image 16/9 — le format
-     le plus courant — s'y affiche sans recadrage. */
-  aspect-ratio: 16 / 9;
-  overflow: hidden;
-  background: var(--surface-3);
-}
-
-/* L'image est posée en absolu : elle remplit la zone et se recadre, sans
-   jamais pouvoir la faire grandir. */
-.news-media img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-/* Sans image, l'information garde une présence visuelle plutôt qu'un vide. */
-.news-media-plain {
-  display: grid;
-  place-items: center;
-  color: var(--accent-ink);
-  background-image: radial-gradient(
-      130% 120% at 16% 10%,
-      var(--accent-soft-strong),
-      transparent 62%
-    );
-}
-
-.news-body {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--sp-2);
-  padding: var(--sp-5);
-  min-width: 0;
   overflow: hidden;
 }
 
@@ -1960,57 +2140,43 @@ html[data-density="compact"] .section {
   color: var(--accent-ink);
 }
 
-.news-title {
-  margin: 0;
-  font-family: var(--font-display);
-  /* Volontairement en dessous du titre de la page : l'accueil doit d'abord se
-     lire d'un coup d'œil, pas crier. */
-  font-size: var(--fs-lg);
-  font-weight: 650;
-  line-height: var(--lh-tight);
-  letter-spacing: -0.015em;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.news-text {
-  margin: 0;
-  font-size: var(--fs-base);
-  color: var(--text-2);
-  line-height: var(--lh-base);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.news-link {
-  margin-top: auto;
-}
-
 .carousel-dots {
   display: flex;
   justify-content: center;
-  gap: 6px;
-  margin-top: var(--sp-3);
+  align-items: center;
+  gap: 2px;
 }
 
+/* La cible fait 24 x 24 px (WCAG 2.2, 2.5.8) même si le point visible en fait
+   huit : un point de huit pixels se rate à la souris. */
 .carousel-dot {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-full);
+}
+
+.carousel-dot::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
   width: 8px;
   height: 8px;
+  margin: -4px 0 0 -4px;
   border-radius: var(--r-full);
   background: var(--stroke-strong);
-  transition: width var(--dur-2) var(--ease), background-color var(--dur-2) var(--ease);
+  transition: width var(--dur-2) var(--ease), background-color var(--dur-2) var(--ease),
+    margin-left var(--dur-2) var(--ease);
 }
 
-.carousel-dot:hover {
+.carousel-dot:hover::before {
   background: color-mix(in srgb, var(--accent) 55%, var(--stroke-strong));
 }
 
-.carousel-dot[aria-current="true"] {
-  width: 24px;
+.carousel-dot[aria-current="true"]::before {
+  width: 20px;
+  margin-left: -10px;
   background: var(--accent);
 }
 
@@ -2043,6 +2209,8 @@ html[data-density="compact"] .section {
   box-shadow: var(--shadow-2);
 }
 
+/* Visuels des mises en avant et du panneau latéral. Les tuiles de la grille,
+   elles, portent une vignette en ligne (`.app-thumb`). */
 .spot-visual,
 .app-visual {
   position: relative;
@@ -2068,6 +2236,40 @@ html[data-density="compact"] .section {
     var(--cat-soft, var(--accent-soft)),
     var(--surface-3) 78%
   );
+}
+
+/* Ligne de catégorie des mises en avant (« Le moment », « Le mois »). */
+.app-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+  min-width: 0;
+}
+
+.app-eyebrow .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-full);
+  background: var(--cat-color, var(--accent));
+  flex: none;
+}
+
+.app-eyebrow .sep {
+  opacity: 0.5;
+}
+
+.app-eyebrow .cat {
+  color: var(--cat-ink, var(--text-3));
+  font-weight: 600;
+}
+
+.app-eyebrow .trunc {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .spot-body {
@@ -2107,26 +2309,11 @@ html[data-density="compact"] .section {
   gap: var(--sp-2);
 }
 
-/* La vignette d'un outil épouse le haut de la carte. */
-.app-card.has-visual {
-  padding-top: 0;
-  gap: var(--sp-2);
-}
-
-.app-card .app-visual {
-  margin: 0 calc(-1 * var(--sp-4)) var(--sp-1);
-  border-radius: calc(var(--r-lg) - 1px) calc(var(--r-lg) - 1px) 0 0;
-}
-
-.app-shot-btn {
-  gap: 5px;
-}
-
 /* ── 14. Aperçu des captures d'écran ─────────────────────────────────────── */
 
-.preview-gallery {
+.drawer-gallery {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: var(--sp-3);
 }
 
@@ -2143,27 +2330,187 @@ html[data-density="compact"] .section {
   display: block;
 }
 
-.preview-desc {
-  margin: var(--sp-4) 0 0;
+/* ── 15. Panneau latéral ─────────────────────────────────────────────────── */
+
+/*
+  Il glisse depuis la droite SANS voile : la page reste visible et cliquable
+  derrière. C'est le principe — consulter une information ou la fiche d'un
+  outil ne doit pas coûter la perte du contexte, ce que faisait la boîte de
+  dialogue des captures d'écran.
+
+  `hidden` reste l'état de repos : le panneau n'est pas atteignable au clavier
+  tant qu'il n'est pas ouvert, et la transition n'a lieu qu'à l'ouverture.
+*/
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  width: min(400px, 92vw);
+  background: var(--surface-1);
+  border-left: 1px solid var(--stroke-strong);
+  /* Une ombre portée plutôt qu'un voile : le panneau se détache du catalogue
+     sans l'éteindre. */
+  box-shadow: var(--shadow-3);
+  animation: drawer-in var(--dur-3) var(--ease-out);
+}
+
+.drawer[hidden] {
+  display: none;
+}
+
+.drawer-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  flex: none;
+  padding: var(--sp-4) var(--sp-4) var(--sp-3) var(--sp-5);
+  border-bottom: 1px solid var(--stroke);
+}
+
+.drawer-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+
+.drawer-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--sp-5);
+}
+
+.drawer-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: none;
+  padding: var(--sp-3) var(--sp-5) var(--sp-4);
+  border-top: 1px solid var(--stroke);
+}
+
+/* Le pied peut être vide — une information sans lien — : sans cela, il
+   laisserait une bande de 60 px sous le texte. */
+.drawer-foot:empty {
+  display: none;
+}
+
+.drawer-figure {
+  margin: 0 0 var(--sp-4);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: var(--surface-3);
+}
+
+.drawer-figure img {
+  display: block;
+  width: 100%;
+}
+
+.drawer-visual {
+  position: relative;
+  overflow: hidden;
+  margin: 0 0 var(--sp-4);
+  border-radius: var(--r-lg);
+  aspect-ratio: 16 / 9;
+  background: var(--surface-3);
+}
+
+.drawer-visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.drawer-visual-plain {
+  display: grid;
+  place-items: center;
+  background-image: linear-gradient(
+    135deg,
+    var(--cat-soft, var(--accent-soft)),
+    var(--surface-3) 78%
+  );
+}
+
+.drawer-date {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+}
+
+.drawer-heading {
+  margin: 0 0 var(--sp-3);
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: 650;
+  line-height: var(--lh-tight);
+  letter-spacing: -0.015em;
+}
+
+.drawer-text {
+  margin: 0;
+  font-size: var(--fs-base);
   color: var(--text-2);
+  line-height: var(--lh-base);
 }
 
-/* Densité compacte : le carrousel et les mises en avant suivent le réglage. */
-html[data-density="compact"] .news-slide {
-  height: 196px;
-}
-
-html[data-density="compact"] .news-body {
-  padding: var(--sp-4);
+.drawer-eyebrow {
+  display: flex;
+  align-items: center;
   gap: 6px;
+  margin-bottom: var(--sp-3);
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+  min-width: 0;
 }
 
-html[data-density="compact"] .news-title {
-  font-size: var(--fs-md);
+.drawer-eyebrow .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-full);
+  background: var(--cat-color, var(--accent));
+  flex: none;
 }
 
-html[data-density="compact"] .news-text {
-  -webkit-line-clamp: 2;
+.drawer-eyebrow .cat {
+  color: var(--cat-ink, var(--text-3));
+  font-weight: 600;
+}
+
+.drawer-eyebrow .sep {
+  opacity: 0.5;
+}
+
+.drawer-eyebrow .trunc {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes drawer-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+/* Densité compacte : le bandeau et les mises en avant suivent le réglage. Le
+   bandeau ne change pas de hauteur — 52 px est déjà le minimum lisible. */
+html[data-density="compact"] .tool-tile {
+  height: 84px;
 }
 
 html[data-density="compact"] .spot-row {
