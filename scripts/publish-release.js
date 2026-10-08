@@ -87,12 +87,34 @@ async function api(token, method, url, body, extraHeaders) {
   return data;
 }
 
-/* ─── Empreintes ─────────────────────────────────────────────────────────── */
+/* ─── Empreintes et signature ────────────────────────────────────────────── */
 
 function sha256(file) {
   const hash = crypto.createHash("sha256");
   hash.update(fs.readFileSync(file));
   return hash.digest("hex");
+}
+
+/**
+ * État de la signature Authenticode d'un fichier.
+ *
+ * « Valid »      : signé et chaîne de confiance complète.
+ * « UnknownError » : signé, mais la racine n'est pas approuvée sur ce poste —
+ *                    le cas d'un certificat interne distribué par GPO.
+ * « NotSigned »  : aucune signature.
+ */
+function signatureStatus(file) {
+  const script =
+    "(Get-AuthenticodeSignature -LiteralPath " +
+    JSON.stringify(file) +
+    ").Status";
+  try {
+    return execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
+      encoding: "utf-8"
+    }).trim();
+  } catch {
+    return "Indetermine";
+  }
 }
 
 /* ─── Retrait d'une release ──────────────────────────────────────────────── */
@@ -168,7 +190,45 @@ async function main() {
   });
 
   console.log("Version : " + version + "   tag : " + tag);
-  assets.forEach((a) => console.log("  " + a.name + "  (" + Math.round(a.size / 1024 / 1024) + " Mo)"));
+
+  // Contrôle de signature : un binaire non signé déclenche « Éditeur inconnu »
+  // et l'avertissement SmartScreen. Mieux vaut s'en apercevoir ici qu'après
+  // avoir diffusé 305 Mo sur 2000 postes.
+  const unsigned = [];
+  const untrusted = [];
+  for (const asset of assets) {
+    if (!asset.name.endsWith(".exe")) continue;
+    asset.signature = signatureStatus(asset.file);
+    if (asset.signature === "NotSigned") unsigned.push(asset.name);
+    else if (asset.signature === "UnknownError") untrusted.push(asset.name);
+  }
+  for (const asset of assets) {
+    const note = asset.signature ? "  signature=" + asset.signature : "";
+    console.log("  " + asset.name + "  (" + Math.round(asset.size / 1024 / 1024) + " Mo)" + note);
+  }
+
+  if (untrusted.length && !argv.includes("--allow-internal-cert")) {
+    console.error(
+      "\n  Refus : " + untrusted.length + " fichier(s) sont signes par un certificat dont la\n" +
+      "  racine n'est approuvee sur aucun poste. Sur une page de telechargement\n" +
+      "  publique, une signature non reconnue est plus suspecte qu'une absence de\n" +
+      "  signature.\n" +
+      "    " + untrusted.join("\n    ") + "\n\n" +
+      "  Utilisez un certificat delivre par une autorite (docs/SIGNATURE.md), ou\n" +
+      "  relancez avec --allow-internal-cert si cette version est destinee a un\n" +
+      "  deploiement interne dont la racine est distribuee par GPO."
+    );
+    process.exit(1);
+  }
+  if (unsigned.length && !argv.includes("--allow-unsigned")) {
+    console.error(
+      "\n  Refus : " + unsigned.length + " fichier(s) ne sont pas signes.\n" +
+      "    " + unsigned.join("\n    ") + "\n\n" +
+      "  Renseignez un certificat avant de publier (voir docs/SIGNATURE.md), ou\n" +
+      "  relancez avec --allow-unsigned si c'est vraiment voulu."
+    );
+    process.exit(1);
+  }
 
   if (dryRun) {
     console.log("\n--dry-run : rien n'a été envoyé.");

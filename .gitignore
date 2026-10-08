@@ -20,5 +20,8 @@ dist-admin/
 .claude/
 *.exe
 
+# Clés de signature : jamais versionnées
+.signing/
+
 # Produit par scripts/publish-release.js
 SHA256SUMS.txt

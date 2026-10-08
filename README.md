@@ -191,6 +191,27 @@ npm run build:all       # les trois
 
 Les fichiers sont écrits dans `dist/` et `dist-admin/`.
 
+### Signer les binaires
+
+Sans signature, Windows affiche « Éditeur inconnu » et SmartScreen avertit au
+premier lancement. La chaîne est déjà en place : renseignez un certificat, et
+les **quatre** exécutables sont signés.
+
+```powershell
+# Certificat livré en .pfx : aucune configuration à modifier
+$env:CSC_LINK = "C:\cles\strasedu.pfx"
+$env:CSC_KEY_PASSWORD = "mot-de-passe"
+npm run build:all
+```
+
+Le certificat installé dans le magasin Windows (jeton EV, Azure Trusted
+Signing) se configure dans `win.signtoolOptions`. Guide complet, coûts et
+pièges : [`docs/SIGNATURE.md`](docs/SIGNATURE.md).
+
+`npm run release` **refuse de publier** un binaire non signé, ou signé par un
+certificat interne non reconnu : il nomme les fichiers fautifs. Les drapeaux
+`--allow-unsigned` et `--allow-internal-cert` lèvent ces refus.
+
 ## Publier une version
 
 Les binaires ne sont pas versionnés dans le dépôt : 300 Mo par version
