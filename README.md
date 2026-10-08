@@ -202,6 +202,16 @@ npm run release         # crée la release du tag v<version> et y dépose les ex
 npm run release:dry     # vérifie sans rien envoyer
 ```
 
+Retirer une version publiée par erreur :
+
+```powershell
+node scripts/publish-release.js --delete v2.0.0 --dry-run   # montre ce qui partirait
+node scripts/publish-release.js --delete v2.0.0
+```
+
+La release et ses fichiers sont supprimés ; le tag Git subsiste, il continue de
+désigner le commit qu'il marquait.
+
 Le script produit `SHA256SUMS.txt` et le joint à la release : indispensable
 quand les fichiers transitent par des partages réseau. Le jeton est lu dans
 l'aide-mémoire de Git — celui qu'utilise déjà `git push` — et n'est jamais

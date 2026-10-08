@@ -15,6 +15,7 @@
      node scripts/publish-release.js                 # version de package.json
      node scripts/publish-release.js --tag v2.0.1
      node scripts/publish-release.js --dry-run
+     node scripts/publish-release.js --delete v2.0.0  # retire une release
    ========================================================================== */
 
 "use strict";
@@ -30,6 +31,10 @@ const REPO = "strasedu";
 
 const argv = process.argv.slice(2);
 const dryRun = argv.includes("--dry-run");
+const deleteArg = (() => {
+  const i = argv.indexOf("--delete");
+  return i >= 0 ? argv[i + 1] : null;
+})();
 const tagArg = (() => {
   const i = argv.indexOf("--tag");
   return i >= 0 ? argv[i + 1] : null;
@@ -90,9 +95,51 @@ function sha256(file) {
   return hash.digest("hex");
 }
 
+/* ─── Retrait d'une release ──────────────────────────────────────────────── */
+
+/**
+ * Retire la release et ses fichiers. Le tag Git n'est pas touché : il continue
+ * de désigner le commit qu'il marquait, ce qui préserve l'historique.
+ */
+async function remove(token, tag) {
+  const base = "https://api.github.com/repos/" + OWNER + "/" + REPO;
+
+  let release;
+  try {
+    release = await api(token, "GET", base + "/releases/tags/" + tag);
+  } catch (error) {
+    if (/→ 404/.test(error.message)) {
+      console.log("Aucune release pour le tag " + tag + ".");
+      return;
+    }
+    throw error;
+  }
+
+  const total = release.assets.reduce((sum, a) => sum + a.size, 0);
+  console.log(
+    "Release " + tag + " — « " + release.name + " », " +
+    release.assets.length + " fichier(s), " + Math.round(total / 1048576) + " Mo"
+  );
+  release.assets.forEach((a) => console.log("  " + a.name));
+
+  if (dryRun) {
+    console.log("\n--dry-run : rien n'a été supprimé.");
+    return;
+  }
+
+  await api(token, "DELETE", base + "/releases/" + release.id);
+  console.log("\nRelease " + tag + " supprimée, fichiers compris.");
+  console.log("Le tag " + tag + " subsiste : il désigne toujours le commit qu'il marquait.");
+}
+
 /* ─── Programme ──────────────────────────────────────────────────────────── */
 
 async function main() {
+  if (deleteArg) {
+    await remove(githubToken(), deleteArg);
+    return;
+  }
+
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf-8"));
   const version = pkg.version;
   const tag = tagArg || "v" + version;
