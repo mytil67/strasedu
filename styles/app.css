@@ -799,15 +799,30 @@ html[data-theme="dark"] .status-chip[data-action]:hover {
 
 /* Ligne de salutation de l'accueil ---------------------------------------- */
 
-/* Elle remplace un héros de 210 px qui ne menait à aucun outil : le nom et la
-   date situent la session, et le catalogue commence tout de suite après. */
+/* Elle remplace un héros de 210 px qui ne menait à aucun outil : le moment et
+   la date situent la session, le nom d'inventaire du poste sert au support, et
+   le catalogue commence tout de suite après. */
 .greeting {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
   margin: var(--sp-1) 0 0;
   font-family: var(--font-display);
   font-size: var(--fs-lg);
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--text-1);
+}
+
+/* Le nom de la machine est une information technique : il se tient à l'écart,
+   en petit, sans concurrencer la date. */
+.greeting-host {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-3);
 }
 
 /* Bandeau d'information --------------------------------------------------- */

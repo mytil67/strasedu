@@ -583,26 +583,26 @@ function capabilities() {
     /* accent système indisponible : on garde la teinte de la charte */
   }
 
-  let userName = "";
+  /*
+     Nom d'inventaire du poste — et non le nom de l'enseignant. L'application
+     n'a pas à identifier la personne qui travaille : un poste de classe est
+     partagé, et le compte Windows ne dit pas qui est devant l'écran. Le nom de
+     la machine, lui, est celui du parc : il sert au support, et il ne change
+     pas d'un utilisateur à l'autre.
+  */
+  let computerName = "";
   try {
-    const raw = String(os.userInfo().username || "").trim();
-    // « c.marchand » -> « C. Marchand » : la ligne de salutation s'adresse à
-    // une personne, pas à un identifiant de session.
-    userName = raw
-      .split(/[\s._-]+/)
-      .filter(Boolean)
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(" ");
+    computerName = String(os.hostname() || "").trim();
   } catch {
-    /* compte systeme illisible (service, profil de domaine) : on salue sans nom */
+    /* nom de machine illisible : l'accueil s'affiche sans lui */
   }
 
   return {
     platform: process.platform,
     windows11: isWindows11(),
     osName: os.type() + " " + os.release(),
-    // Salutation de l'accueil : vide si le compte n'est pas lisible.
-    userName,
+    // Nom d'inventaire du poste, affiché sur l'accueil. Vide s'il est illisible.
+    computerName,
     dark: nativeTheme.shouldUseDarkColors,
     accent,
     version: app.getVersion(),

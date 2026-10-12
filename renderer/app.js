@@ -712,19 +712,29 @@
     return html;
   }
 
-  /** Salutation nominative quand Windows veut bien donner son nom. */
+  /**
+   * Ligne de situation : le moment de la journée, la date, et le nom
+   * d'inventaire du poste. Jamais le nom de l'enseignant — l'application n'a
+   * pas à savoir qui travaille, et le nom de la machine est celui qui sert au
+   * support.
+   */
   function greetingLine() {
     var hour = new Date().getHours();
     var moment = hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi" : "Bonsoir";
-    var name = String(state.capabilities.userName || "").trim();
+    var poste = String(state.capabilities.computerName || "").trim();
     var date = new Date().toLocaleDateString("fr-FR", {
       weekday: "long",
       day: "numeric",
       month: "long"
     });
     return (
-      '<p class="greeting">' + esc(moment) + (name ? ", " + esc(name) : "") +
-      " — " + esc(date) + "</p>"
+      '<p class="greeting">' +
+      '<span class="greeting-moment">' + esc(moment) + " — " + esc(date) + "</span>" +
+      (poste
+        ? '<span class="greeting-host" title="Nom d\'inventaire du poste">' +
+          esc(poste) + "</span>"
+        : "") +
+      "</p>"
     );
   }
 

@@ -41,8 +41,9 @@ const snapshot = {
     platform: "win32",
     windows11: true,
     osName: "Windows_NT 10.0.26200",
-    // Comme le processus principal : le nom du compte Windows, mis en forme.
-    userName: "C. Marchand",
+    // Comme le processus principal : le nom d'inventaire du poste, celui du
+    // parc — jamais le nom de l'enseignant.
+    computerName: "EDMX6768",
     dark: theme === "dark",
     accent: "#0f9d63",
     version: "2.0.0",
