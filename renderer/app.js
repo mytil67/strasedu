@@ -789,27 +789,46 @@
     return (
       '<section class="news-strip" data-carousel aria-label="' +
       esc(news.title || "Informations du département informatique") + '">' +
-      '<span class="news-strip-ico" aria-hidden="true">' + svg("bullhorn", 17) + "</span>" +
+      '<div class="news-strip-head">' +
+      '<span class="news-strip-ico" aria-hidden="true">' + svg("bullhorn", 16) + "</span>" +
+      '<h2 class="news-strip-title">' +
+      esc(news.title || "Informations du département informatique") + "</h2>" +
+      dots +
+      nav +
+      "</div>" +
       '<div class="carousel-track" tabindex="0" aria-live="polite">' +
       items.map(newsStripSlide).join("") +
       "</div>" +
-      nav +
-      dots +
       "</section>"
     );
   }
 
+  /**
+   * Une information, avec son image.
+   *
+   * Une seule ligne de texte était lisible, mais elle avait perdu ce qui donne
+   * envie de lire : le visuel. La diapositive tient en 96 px — contre 307 px
+   * pour le carrousel d'origine — et l'image y est un vrai aperçu.
+   */
   function newsStripSlide(item, index, all) {
+    var visuel = item.image
+      ? '<img class="news-shot" alt="" src="' + esc(item.image) + '">'
+      : '<span class="news-shot news-shot-plain" aria-hidden="true">' +
+        svg("bullhorn", 22) + "</span>";
+
     return (
       '<article class="news-slide" role="group" aria-roledescription="information" ' +
       'aria-label="' + (index + 1) + " sur " + all.length + '">' +
       '<button class="news-line" type="button" data-action="news-open" data-id="' +
       esc(item.id) + '">' +
+      visuel +
+      '<span class="news-copy">' +
       (item.date ? '<span class="news-date">' + esc(item.date) + "</span>" : "") +
       '<span class="news-headline">' + esc(item.title || item.text || "") + "</span>" +
-      (item.image
-        ? '<img class="news-thumb" alt="" src="' + esc(item.image) + '">'
+      (item.text && item.title
+        ? '<span class="news-teaser">' + esc(item.text) + "</span>"
         : "") +
+      "</span>" +
       '<span class="news-go" aria-hidden="true">' + svg("chevronRight", 16) + "</span>" +
       "</button></article>"
     );
