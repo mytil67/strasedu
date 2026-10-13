@@ -96,9 +96,29 @@ function Test-Administrator {
 }
 
 function Resolve-Destination {
-    if ($Destination) { return $Destination.TrimEnd("\") }
-    if ($AllUsers) { return (Join-Path $env:ProgramFiles $AppName) }
-    return (Join-Path $env:LOCALAPPDATA ("Programs\" + $AppName))
+    $chemin = ""
+    if ($Destination) {
+        $chemin = $Destination.TrimEnd("\")
+    } elseif ($AllUsers) {
+        $chemin = Join-Path $env:ProgramFiles $AppName
+    } else {
+        $chemin = Join-Path $env:LOCALAPPDATA ("Programs\" + $AppName)
+    }
+
+    # Un chemin contenant un espace doit être passé ENTRE GUILLEMETS. Sans eux,
+    # l'outil de copie coupe l'argument : la destination devient « C:\Program »,
+    # un dossier parasite apparaît à la racine du disque, et Windows affiche un
+    # avertissement à chaque ouverture de session — « Il existe un fichier ou un
+    # dossier nommé C:\Program » — en proposant de le renommer. On refuse net
+    # plutôt que de laisser un poste dans cet état.
+    if ($chemin -match '^[A-Za-z]:\\Program$') {
+        Write-Log ("Destination invalide : « $chemin » est un chemin tronqué. " +
+            "Un chemin contenant des espaces s'écrit entre guillemets : " +
+            "-Destination `"$env:ProgramFiles\$AppName`" — ou utilisez -AllUsers.") "ERROR"
+        exit 2
+    }
+
+    return $chemin
 }
 
 function Get-AppVersion {

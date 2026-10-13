@@ -381,6 +381,53 @@ npm run build:portable  # version portable seule
 | Journal applicatif | `%APPDATA%\StrasEdu\logs\strasedu.log` |
 | **Trace de démarrage** | `%TEMP%\StrasEdu-demarrage.log` et, en version portable, à côté de l'exécutable |
 
+### Un chemin mal cité crée un dossier « C:\Program »
+
+**Symptôme.** À l'ouverture de session, Windows affiche :
+
+> *Avertissement sur le nom de fichier — Il existe un fichier ou un dossier nommé
+> « C:\Program » sur votre ordinateur… Voulez-vous le renommer maintenant ?*
+
+**Cause.** Un chemin contenant un espace a été passé **sans guillemets** :
+
+```powershell
+# FAUX — l'argument est coupé, le dossier créé s'appelle « C:\Program »
+Copy-Item -Path .\dist\win-unpacked\* -Destination C:\Program Files\StrasEdu -Recurse
+xcopy /E /Y "\\serveur\partage\StrasEdu" C:\Program Files\StrasEdu
+
+# JUSTE — le chemin entier est entre guillemets
+Copy-Item -Path .\dist\win-unpacked\* -Destination "C:\Program Files\StrasEdu" -Recurse
+.\install-strasedu.ps1 -Source "\\serveur\partage\StrasEdu" -AllUsers
+.\install-strasedu.ps1 -Source "\\serveur\partage\StrasEdu" -Destination "C:\Program Files\StrasEdu"
+```
+
+Le dossier `C:\Program` est alors créé à la racine du disque, et Windows avertit à
+chaque session suivante. **`install-strasedu.ps1` refuse désormais cette
+destination** et affiche la syntaxe correcte (code de sortie 2) plutôt que de
+laisser le poste dans cet état.
+
+**Réparer un poste déjà touché.** Vérifiez d'abord ce que contient ce dossier :
+il peut renfermer l'application copiée au mauvais endroit.
+
+```powershell
+Get-ChildItem C:\Program -Force          # que contient-il ?
+Remove-Item C:\Program -Recurse -Force   # seulement après vérification
+```
+
+Puis réinstallez proprement. L'avertissement disparaît à la session suivante.
+
+### Où l'application doit être installée
+
+| Méthode | Emplacement | Droits |
+| --- | --- | --- |
+| Installateur `.exe` (recommandé) | `C:\Program Files\StrasEdu\` | administrateur |
+| `install-strasedu.ps1 -AllUsers` | `C:\Program Files\StrasEdu\` | administrateur |
+| `install-strasedu.ps1` sans option | `%LOCALAPPDATA%\Programs\StrasEdu\` | utilisateur courant |
+
+Sur un parc, c'est **`C:\Program Files\StrasEdu`** qu'il faut viser : une seule
+copie pour tous les utilisateurs du poste, et une mise à jour qui profite à tout
+le monde. L'installateur le fait par défaut (`perMachine`), sans rien à préciser.
+
 ### Diagnostiquer un démarrage qui n'affiche rien
 
 L'application écrit une **trace de démarrage** avant toute autre chose, y
