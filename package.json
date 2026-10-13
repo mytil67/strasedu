@@ -1,6 +1,6 @@
 {
   "name": "strasedu",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "StrasEdu — lanceur d'applications pédagogiques pour les établissements scolaires",
   "main": "main.js",
   "author": "STRAS EDU",
